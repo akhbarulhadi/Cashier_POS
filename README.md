@@ -200,7 +200,7 @@ npm run dev
 
 <div align="center">
   
-<h2 id="creator">Creator⚡</h2>
+<h2 id="creator">Creator </h2>
 
 <table>
 <tr>
