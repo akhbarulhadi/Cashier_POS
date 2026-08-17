@@ -1,0 +1,438 @@
+// =====================================================================================
+// PRISMA SCHEMA - Aplikasi Kasir (POS) & Manajemen Toko Enterprise
+// =====================================================================================
+// Database   : Supabase PostgreSQL
+// ORM        : Prisma
+// Catatan Penting:
+//   - Model `User` merepresentasikan tabel `public."User"` yang SINKRON dengan
+//     `auth.users` milik Supabase Auth. Sinkronisasi dilakukan lewat:
+//       1) SQL Trigger `on_auth_user_created` pada `auth.users` (lihat migration SQL
+//          tambahan di TAHAP 2), ATAU
+//       2) Fallback pengecekan/upsert di server-side (middleware/login handler).
+//   - Kolom `id` pada `User` SENGAJA bertipe `String @id` (UUID) tanpa foreign key
+//     eksplisit ke skema `auth` karena Prisma (tanpa multiSchema penuh) tidak
+//     memodelkan tabel `auth.users` yang dikelola Supabase. Konsistensi dijaga
+//     secara aplikatif + trigger database.
+//   - Seluruh soft-delete menggunakan kolom `deletedAt` (nullable DateTime).
+//   - Snapshot data (nama produk, harga, dsb) disimpan pada `TransactionItem` agar
+//     riwayat transaksi tidak berubah walau data master produk diedit di kemudian hari.
+// =====================================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =====================================================================================
+// ENUMS
+// =====================================================================================
+
+enum UserRole {
+  OWNER // Pemilik toko - akses penuh termasuk laporan keuangan & AI Advisor
+  ADMIN // Admin/Manager - kelola produk, kategori, laporan
+  CASHIER // Kasir - hanya akses POS & transaksi miliknya
+
+  @@map("user_role")
+}
+
+enum PaymentMethod {
+  CASH
+  DEBIT_CARD
+  CREDIT_CARD
+  QRIS
+  E_WALLET
+  BANK_TRANSFER
+  OTHER
+
+  @@map("payment_method")
+}
+
+enum TransactionStatus {
+  PENDING // Draft/belum dibayar penuh (hold transaction)
+  COMPLETED // Lunas, stok sudah terpotong
+  REFUNDED // Dikembalikan penuh, stok sudah dikembalikan
+  PARTIALLY_REFUNDED // Sebagian item direfund
+  CANCELLED // Dibatalkan sebelum settle (stok tidak pernah terpotong)
+
+  @@map("transaction_status")
+}
+
+enum StockMovementType {
+  PURCHASE_IN // Stok masuk dari pembelian/supplier
+  SALE_OUT // Stok keluar karena penjualan (POS)
+  REFUND_IN // Stok kembali karena refund/retur
+  ADJUSTMENT_IN // Koreksi manual - penambahan
+  ADJUSTMENT_OUT // Koreksi manual - pengurangan
+  TRANSFER_IN // Transfer stok masuk antar gudang/outlet
+  TRANSFER_OUT // Transfer stok keluar antar gudang/outlet
+  INITIAL // Stok awal saat produk dibuat
+
+  @@map("stock_movement_type")
+}
+
+enum StockMovementRefType {
+  TRANSACTION
+  MANUAL
+  PURCHASE_ORDER
+  STOCK_OPNAME
+
+  @@map("stock_movement_ref_type")
+}
+
+// =====================================================================================
+// USER (SINKRON DENGAN SUPABASE AUTH `auth.users`)
+// =====================================================================================
+
+model User {
+  id        String    @id @db.Uuid // Sama persis dengan auth.users.id
+  email     String    @unique
+  fullName  String    @map("full_name")
+  phone     String?
+  role      UserRole  @default(CASHIER)
+  avatarUrl String?   @map("avatar_url")
+  isActive  Boolean   @default(true) @map("is_active")
+  lastLogin DateTime? @map("last_login")
+
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relasi: transaksi yang dilayani oleh kasir/user ini
+  transactions   Transaction[]      @relation("CashierTransactions")
+  stockMovements StockMovement[]    @relation("UserStockMovements")
+  auditLogs      AuditLog[]
+  refundsHandled RefundTransaction[] @relation("RefundHandledBy")
+  chatSessions   AiChatSession[]
+
+  @@index([role])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// =====================================================================================
+// KATEGORI PRODUK
+// =====================================================================================
+
+model Category {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @unique
+  description String?
+  imageUrl    String? @map("image_url")
+
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@index([deletedAt])
+  @@map("categories")
+}
+
+// =====================================================================================
+// PRODUK & INVENTARIS
+// =====================================================================================
+
+model Product {
+  id         String  @id @default(uuid()) @db.Uuid
+  sku        String  @unique // Stock Keeping Unit
+  barcode    String? @unique
+  name       String
+  categoryId String  @map("category_id") @db.Uuid
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  description String?
+  imageUrl    String? @map("image_url")
+
+  costPrice Decimal @map("cost_price") @db.Decimal(14, 2) // HPP
+  sellPrice Decimal @map("sell_price") @db.Decimal(14, 2) // Harga jual
+
+  unit     String @default("pcs") // pcs, kg, box, dll
+  stock    Int    @default(0) // Stok real-time
+  minStock Int    @default(5) @map("min_stock") // Batas alert stok menipis
+
+  isActive Boolean @default(true) @map("is_active")
+
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  transactionItems TransactionItem[]
+  stockMovements   StockMovement[]
+  refundItems      RefundItem[]
+
+  @@index([categoryId])
+  @@index([deletedAt])
+  @@index([isActive])
+  @@index([name])
+  @@index([stock])
+  @@map("products")
+}
+
+// =====================================================================================
+// RIWAYAT MUTASI STOK (STOCK MOVEMENT / LEDGER)
+// =====================================================================================
+
+model StockMovement {
+  id        String            @id @default(uuid()) @db.Uuid
+  productId String            @map("product_id") @db.Uuid
+  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type          StockMovementType    @map("type")
+  refType       StockMovementRefType @default(MANUAL) @map("ref_type")
+  referenceId   String?              @map("reference_id") @db.Uuid // ID transaksi/PO terkait
+
+  quantity     Int // Selalu positif; makna arah ditentukan oleh `type`
+  stockBefore  Int @map("stock_before")
+  stockAfter   Int @map("stock_after")
+
+  note String?
+
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation("UserStockMovements", fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([productId])
+  @@index([type])
+  @@index([referenceId])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+// =====================================================================================
+// PELANGGAN (CRM SEDERHANA)
+// =====================================================================================
+
+model Customer {
+  id      String  @id @default(uuid()) @db.Uuid
+  name    String
+  phone   String? @unique
+  email   String? @unique
+  address String?
+
+  totalSpent        Decimal @default(0) @map("total_spent") @db.Decimal(14, 2)
+  totalTransactions Int     @default(0) @map("total_transactions")
+  loyaltyPoints     Int     @default(0) @map("loyalty_points")
+
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  transactions Transaction[]
+
+  @@index([deletedAt])
+  @@index([name])
+  @@map("customers")
+}
+
+// =====================================================================================
+// TRANSAKSI (HEADER)
+// =====================================================================================
+
+model Transaction {
+  id            String @id @default(uuid()) @db.Uuid
+  invoiceNumber String @unique @map("invoice_number") // Format: INV-YYYYMMDD-XXXX
+
+  customerId String?   @map("customer_id") @db.Uuid
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  cashierId String @map("cashier_id") @db.Uuid
+  cashier   User   @relation("CashierTransactions", fields: [cashierId], references: [id], onDelete: Restrict)
+
+  subtotal        Decimal @db.Decimal(14, 2)
+  discountAmount  Decimal @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  taxAmount       Decimal @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  taxPercent      Decimal @default(0) @map("tax_percent") @db.Decimal(5, 2)
+  grandTotal      Decimal @map("grand_total") @db.Decimal(14, 2)
+
+  paymentMethod PaymentMethod      @map("payment_method")
+  paidAmount    Decimal            @map("paid_amount") @db.Decimal(14, 2)
+  changeAmount  Decimal            @default(0) @map("change_amount") @db.Decimal(14, 2)
+  status        TransactionStatus  @default(COMPLETED)
+
+  notes String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  items   TransactionItem[]
+  refunds RefundTransaction[]
+
+  // Catatan: StockMovement.referenceId TIDAK memakai foreign key langsung ke
+  // Transaction karena bersifat polymorphic (bisa merujuk ke Transaction,
+  // Purchase Order, atau Stock Opname sesuai kolom `refType`).
+
+  @@index([cashierId])
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([invoiceNumber])
+  @@map("transactions")
+}
+
+// =====================================================================================
+// ITEM TRANSAKSI (DETAIL) - MENYIMPAN SNAPSHOT DATA PRODUK SAAT TRANSAKSI
+// =====================================================================================
+
+model TransactionItem {
+  id            String      @id @default(uuid()) @db.Uuid
+  transactionId String      @map("transaction_id") @db.Uuid
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  productId String  @map("product_id") @db.Uuid
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  // Snapshot data produk pada saat transaksi terjadi
+  productName String  @map("product_name")
+  sku         String
+  costPrice   Decimal @map("cost_price") @db.Decimal(14, 2)
+  sellPrice   Decimal @map("sell_price") @db.Decimal(14, 2)
+
+  quantity       Int
+  discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  subtotal       Decimal @db.Decimal(14, 2) // (sellPrice * qty) - discountAmount
+
+  refundedQty Int @default(0) @map("refunded_qty")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  refundItems RefundItem[]
+
+  @@index([transactionId])
+  @@index([productId])
+  @@map("transaction_items")
+}
+
+// =====================================================================================
+// REFUND / RETUR TRANSAKSI
+// =====================================================================================
+
+model RefundTransaction {
+  id            String      @id @default(uuid()) @db.Uuid
+  transactionId String      @map("transaction_id") @db.Uuid
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  handledById String @map("handled_by_id") @db.Uuid
+  handledBy   User   @relation("RefundHandledBy", fields: [handledById], references: [id], onDelete: Restrict)
+
+  reason      String
+  totalAmount Decimal @map("total_amount") @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  items RefundItem[]
+
+  @@index([transactionId])
+  @@index([createdAt])
+  @@map("refund_transactions")
+}
+
+model RefundItem {
+  id       String @id @default(uuid()) @db.Uuid
+  refundId String @map("refund_id") @db.Uuid
+  refund   RefundTransaction @relation(fields: [refundId], references: [id], onDelete: Cascade)
+
+  transactionItemId String           @map("transaction_item_id") @db.Uuid
+  transactionItem   TransactionItem  @relation(fields: [transactionItemId], references: [id], onDelete: Restrict)
+
+  productId String  @map("product_id") @db.Uuid
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  quantity Int
+  amount   Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([refundId])
+  @@index([transactionItemId])
+  @@map("refund_items")
+}
+
+// =====================================================================================
+// AUDIT LOG (JEJAK AKTIVITAS PENTING - opsional tapi krusial untuk enterprise)
+// =====================================================================================
+
+model AuditLog {
+  id     String  @id @default(uuid()) @db.Uuid
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  action     String // e.g. "PRODUCT_CREATE", "TRANSACTION_REFUND", "LOGIN"
+  entityType String? @map("entity_type") // e.g. "Product", "Transaction"
+  entityId   String? @map("entity_id")
+  metadata   Json?
+
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// =====================================================================================
+// PENGATURAN TOKO (STORE SETTINGS) - dipakai untuk struk, PPN default, dsb
+// =====================================================================================
+
+model StoreSetting {
+  id String @id @default(uuid()) @db.Uuid
+
+  storeName    String  @map("store_name")
+  address      String?
+  phone        String?
+  email        String?
+  logoUrl      String? @map("logo_url")
+  receiptFooter String? @map("receipt_footer")
+
+  defaultTaxPercent Decimal @default(0) @map("default_tax_percent") @db.Decimal(5, 2)
+  currency          String  @default("IDR")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("store_settings")
+}
+
+// =====================================================================================
+// AI CHAT SESSION & MESSAGES - Menyimpan riwayat percakapan AI Business Advisor
+// =====================================================================================
+
+model AiChatSession {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title  String @default("Sesi Baru")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages AiChatMessage[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("ai_chat_sessions")
+}
+
+model AiChatMessage {
+  id        String        @id @default(uuid()) @db.Uuid
+  sessionId String        @map("session_id") @db.Uuid
+  session   AiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role    String // "user" | "assistant"
+  content String
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("ai_chat_messages")
+}
