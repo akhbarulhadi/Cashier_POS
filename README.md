@@ -1,50 +1,146 @@
-# Modern POS Enterprise - Cashier & Store Management
+<div id="top"></div>
 
+# <p align="center">✨ Cashier POS ✨</p>
+<p align="center">
+   
+<div align="center"> 
+    <h1> 
+      <img src="https://readme-typing-svg.herokuapp.com?font=Jetbrains+mono&size=25&duration=3200&color=4FC3F7&center=true&vCenter=true&width=550&lines=Welcome+to+Cashier+POS+Enterprise!;" alt="Title"/> 
+    </h1>
+</div>
+
+<div align="center">
+  <img src="https://img.icons8.com/color/344/cash-register.png" alt="POS Logo" width="120">
+</div>
+
+ <h2>Hi there👋, Welcome to the Cashier & Store Management Platform! </h2>
+
+<p>
 A full-stack, enterprise-grade Point of Sale (POS) and Store Management web application. Built with modern web technologies, this application offers a robust, highly responsive, and localized (English) interface for cashiers, alongside powerful managerial tools for inventory, CRM, and AI-driven business insights.
+</p>
 
-## Live Demo
-[View Live Demo Here](#) *(Replace with your deployment link)*
+<!--line-->
+<img src="https://raw.githubusercontent.com/akhbarulhadi/akhbarulhadi.github.io/refs/heads/master/animated-line-image.gif" width="1920" />
 
-## Key Features
+<h2>Table of Contents🧾</h2>
 
-* **Transaction & Cart Management:** Streamlined cashier checkout process with support for holding/resuming orders, applying taxes and discounts, and processing multiple payment methods (Cash, Card, QRIS, E-Wallet).
-* **English Localized UI:** Fully translated, intuitive user interface designed for maximum efficiency and clarity.
-* **Product & Category Management:** Comprehensive master data management for products and categories.
-* **Smart Soft-Delete Mechanism:** Features a unique "Soft Delete" system. When products or categories are deleted, their unique identifiers (like SKUs and Names) are timestamped and archived. This ensures historical transaction data remains intact while freeing up the SKU/Name for new entries without database constraint errors.
-* **Advanced Inventory Tracking:** Detailed stock movement ledgers (purchases, sales, refunds, and manual adjustments) to trace every single item entering or leaving the system.
-* **Customer Relationship Management (CRM):** Track customer data, transaction history, and loyalty points.
-* **Role-Based Access Control:** Differentiated access levels for `OWNER`, `ADMIN`, and `CASHIER`.
-* **AI Business Advisor:** Built-in AI chat using the Groq API to provide owners and managers with intelligent business strategies based on sales data.
-* **Printable Receipts:** Dynamic receipt generation using `html2canvas` and `jspdf`.
+- [Overview📌](#overview)
+- [Key Features🚀](#key-features)
+- [Tech Stack💻](#tech-stack)
+- [Demo🌐](#demo)
+- [Installation⚙️](#installation)
+- [Creator⚡](#creator)
 
-## Tech Stack
+<br>
+<!--line-->
+<img src="https://raw.githubusercontent.com/akhbarulhadi/akhbarulhadi.github.io/refs/heads/master/animated-line-image.gif" width="1920" />
+
+<h2 id="overview">Overview📌</h2>
+
+<p>
+This project was built with the goal of delivering a seamless and accessible checkout and store management platform. Key objectives include:
+</p>
+
+<ol>
+  <li>
+    <strong>Transaction & Cart Management:</strong> Streamlined cashier checkout process with support for holding/resuming orders, applying taxes and discounts, and processing multiple payment methods (Cash, Card, QRIS, E-Wallet).
+  </li>
+  <li>
+    <strong>Smart Soft-Delete Mechanism:</strong> When products or categories are deleted, their unique identifiers (like SKUs and Names) are timestamped and archived. This ensures historical transaction data remains intact while freeing up the SKU/Name for new entries without database constraint errors.
+  </li>
+  <li>
+    <strong>Advanced Inventory Tracking:</strong> Detailed stock movement ledgers (purchases, sales, refunds, and manual adjustments) to trace every single item entering or leaving the system.
+  </li>
+  <li>
+    <strong>AI Business Advisor:</strong> Built-in AI chat using the Groq API to provide owners and managers with intelligent business strategies based on sales data.
+  </li>
+</ol>
+
+
+<!--line-->
+<img src="https://raw.githubusercontent.com/akhbarulhadi/akhbarulhadi.github.io/refs/heads/master/animated-line-image.gif" width="1920" />
+
+<h2 id="key-features">Key Features🚀</h2>
+<ul>
+  <li>🛒 <strong>Point of Sale (POS):</strong> Fast and responsive cart management.</li>
+  <li>🌍 <strong>English Localized UI:</strong> Fully translated, intuitive user interface.</li>
+  <li>📦 <strong>Product & Category Management:</strong> Comprehensive master data management.</li>
+  <li>👥 <strong>Customer Relationship Management (CRM):</strong> Track customer data and transaction history.</li>
+  <li>🔒 <strong>Role-Based Access Control:</strong> Differentiated access levels for <code>OWNER</code>, <code>ADMIN</code>, and <code>CASHIER</code>.</li>
+  <li>🖨️ <strong>Printable Receipts:</strong> Dynamic receipt generation using <code>html2canvas</code> and <code>jspdf</code>.</li>
+</ul>
+
+<p align="right"><a href="#top"><img src="https://img.shields.io/badge/Move%20to%20top-Blue?style=plastic" alt="Back To Top"></a></p>
+
+<!--line-->
+<img src="https://raw.githubusercontent.com/akhbarulhadi/akhbarulhadi.github.io/refs/heads/master/animated-line-image.gif" width="1920" />
+
+<h2 id="tech-stack">Tech Stack💻</h2>
 
 * **Framework:** [Next.js 14](https://nextjs.org/) (App Router)
 * **Language:** TypeScript
 * **Database:** PostgreSQL (Hosted on [Supabase](https://supabase.com/))
 * **ORM:** [Prisma](https://www.prisma.io/)
 * **Authentication:** Supabase SSR Auth
-* **Styling:** Tailwind CSS & [shadcn/ui](https://ui.shadcn.com/) (Radix UI primitives)
-* **Form & Validation:** React Hook Form + Zod
+* **Styling:** Tailwind CSS & [shadcn/ui](https://ui.shadcn.com/)
 * **State Management:** Zustand
 * **AI Integration:** Groq SDK
-* **Charts:** Recharts
 
-## Prerequisites
+<p align="right"><a href="#top"><img src="https://img.shields.io/badge/Move%20to%20top-Blue?style=plastic" alt="Back To Top"></a></p>
 
-Before you begin, ensure you have the following installed:
-* **Node.js:** Version 20.x or higher
-* **npm** or **yarn** or **pnpm**
-* **PostgreSQL:** A local instance or a cloud database like Supabase
+<!--line-->
+<img src="https://raw.githubusercontent.com/akhbarulhadi/akhbarulhadi.github.io/refs/heads/master/animated-line-image.gif" width="1920" />
 
-## Local Setup & Installation
+<h2 id="demo">Demo🌐</h2>
 
-Follow these steps to get the project running locally on your machine.
+<h3>🌐 Live Web Demo</h3>
+<p>
+  You can try out the live web application here: 
+  <strong><a href="https://cashier-pos-five.vercel.app/">cashier-pos-five.vercel.app</a></strong>
+</p>
+
+<hr>
+
+<p>
+  🔐 <strong>Demo Accounts:</strong><br>
+  The application provides three user roles with different access privileges:
+</p>
+
+<ul>
+  <li>
+    <strong>OWNER</strong> – Full access to everything, including AI Advisor, staff management, and all financial reports.
+    <ul>
+      <li><strong>Email:</strong> <code>owner@gmail.com</code></li>
+      <li><strong>Password:</strong> <code>123456</code></li>
+    </ul>
+  </li>
+  <li>
+    <strong>ADMIN</strong> – Access to inventory management, transaction history, and basic reports, but cannot access AI Advisor or manage staff.
+    <ul>
+      <li><strong>Email:</strong> <code>admin@gmail.com</code></li>
+      <li><strong>Password:</strong> <code>123456</code></li>
+    </ul>
+  </li>
+  <li>
+    <strong>CASHIER</strong> – Access restricted only to the POS checkout interface and customer registration.
+    <ul>
+      <li><strong>Email:</strong> <code>cashier@gmail.com</code></li>
+      <li><strong>Password:</strong> <code>123456</code></li>
+    </ul>
+  </li>
+</ul>
+
+<p align="right"><a href="#top"><img src="https://img.shields.io/badge/Move%20to%20top-Blue?style=plastic" alt="Back To Top"></a></p>
+
+<!--line-->
+<img src="https://raw.githubusercontent.com/akhbarulhadi/akhbarulhadi.github.io/refs/heads/master/animated-line-image.gif" width="1920" />
+
+<h2 id="installation">Installation⚙️</h2>
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/pos-enterprise.git
-cd pos-enterprise
+git clone https://github.com/akhbarulhadi/Cashier_POS.git
+cd Cashier_POS
 ```
 
 ### 2. Install dependencies
@@ -53,33 +149,42 @@ npm install
 ```
 
 ### 3. Environment Variables
-Create a `.env` file in the root directory and add the following keys. 
+Copy the `.env.example` file and rename it to `.env` in the root directory, then configure the following keys:
+
+```bash
+cp .env.example .env
+```
 
 ```env
-# Database connection string (e.g., Supabase transaction pooler)
-DATABASE_URL="postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres?pgbouncer=true"
+# SUPABASE
+NEXT_PUBLIC_SUPABASE_URL="https://xxxxxxxxxxxxxxxxxxxx.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="ey.dummy.anon.key.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-# Direct connection for Prisma migrations
-DIRECT_URL="postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres"
+# Service Role Key HANYA dipakai di server (API routes/admin tasks).
+SUPABASE_SERVICE_ROLE_KEY="ey.dummy.service.role.key.xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
-# Supabase Auth
-NEXT_PUBLIC_SUPABASE_URL="https://your-project.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
+# Connection Pooling
+DATABASE_URL="postgresql://postgres.xxxxxxxxxxxxxxxxxxxx:YOUR-PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
 
-# Groq AI API Key
-GROQ_API_KEY="gsk_your_groq_api_key_here"
+# Direct Connection
+DIRECT_URL="postgresql://postgres.xxxxxxxxxxxxxxxxxxxx:YOUR-PASSWORD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+
+# GROQ AI API
+GROQ_API_KEY="gsk_dummy_groq_api_key_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GROQ_MODEL="openai/gpt-oss-120b"
+
+# APP CONFIG
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_APP_NAME="POS Enterprise"
+
+# Timezone default untuk laporan & struk
+APP_TIMEZONE="Asia/Jakarta"
 ```
 
 ### 4. Database Setup & Migration
-Generate the Prisma client and push the schema to your database.
 ```bash
 npx prisma generate
 npx prisma db push
-# or if you prefer using migrations: npx prisma migrate dev
-```
-
-*(Optional)* Seed the database with initial data:
-```bash
 npm run prisma:seed
 ```
 
@@ -87,34 +192,35 @@ npm run prisma:seed
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Folder Structure
+<p align="right"><a href="#top"><img src="https://img.shields.io/badge/Move%20to%20top-Blue?style=plastic" alt="Back To Top"></a></p>
 
-```text
-pos-enterprise/
-├── app/                  # Next.js App Router (Pages, Layouts, API Routes)
-│   ├── (dashboard)/      # Protected routes (POS, Inventory, CRM, Settings)
-│   ├── api/              # Backend API endpoints (RESTful)
-│   └── auth/             # Authentication pages (Login, Register)
-├── components/           # Reusable React components
-│   ├── pos/              # Cashier specific UI (Cart, Dialogs)
-│   ├── products/         # Inventory UI components
-│   ├── receipt/          # Receipt templates for printing
-│   └── ui/               # Base UI components (shadcn/ui)
-├── lib/                  # Utility functions, helpers, and config
-│   └── validations/      # Zod schemas for API and Form validation
-├── prisma/               # Prisma ORM setup
-│   ├── schema.prisma     # Database models and relations
-│   └── seed.ts           # Database seeder script
-├── public/               # Static assets (images, fonts, icons)
-├── package.json          # Project metadata and dependencies
-└── tailwind.config.ts    # Tailwind CSS configuration
-```
+<!--line-->
+<img src="https://raw.githubusercontent.com/akhbarulhadi/akhbarulhadi.github.io/refs/heads/master/animated-line-image.gif" width="1920" />
+
+<div align="center">
+  
+<h2 id="creator">Creator⚡</h2>
+
+<table>
+<tr>
+<td align="center"><a href="https://github.com/akhbarulhadi"><img src="https://avatars.githubusercontent.com/u/129871091?v=4" width=130px height=130px /></a></br> <h4 style="color:red;">Akhbarul Hadi</h4>
+ <a href="https://github.com/akhbarulhadi"><img src="https://img.icons8.com/fluency/2x/github.png" width="32px" height="32px"></img></a>
+</td>
+</tr>
+</table>
+  
+</div>
+
+<!--line-->
+<img src="https://raw.githubusercontent.com/akhbarulhadi/akhbarulhadi.github.io/refs/heads/master/animated-line-image.gif" width="1920" />
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more details.
 
----
-**Author:** Made by 💖 Akhbarul Hadi (2026)
+<p align="center">
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License: MIT">
+</p>
+
+<p align="right"><a href="#top"><img src="https://img.shields.io/badge/Move%20to%20top-Blue?style=plastic" alt="Back To Top"></a></p>
