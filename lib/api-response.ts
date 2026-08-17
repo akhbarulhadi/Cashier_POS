@@ -3,13 +3,6 @@ import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 import { ApiError } from "@/lib/api-error";
 
-/**
- * Consistent API response format across the application.
- * ----------------------------------------------------------------------------
- * Success: { success: true, message, data, meta? }
- * Error  : { success: false, message, code, errors? }
- */
-
 type Meta = {
   page?: number;
   limit?: number;
@@ -52,11 +45,6 @@ export function apiError(
   );
 }
 
-/**
- * Standard wrapper for all API Route handlers.
- * Catches Zod errors, custom ApiErrors, common Prisma errors, and other
- * unexpected errors, converting them into a consistent JSON response.
- */
 export async function withApiHandler(
   handler: () => Promise<NextResponse>
 ): Promise<NextResponse> {
@@ -68,7 +56,6 @@ export async function withApiHandler(
 }
 
 export function handleApiError(err: unknown): NextResponse {
-  // 1) Zod validation error
   if (err instanceof ZodError) {
     console.error("[ZOD_VALIDATION_ERROR]", JSON.stringify(err.flatten().fieldErrors, null, 2));
     return apiError(
@@ -79,12 +66,10 @@ export function handleApiError(err: unknown): NextResponse {
     );
   }
 
-  // 2) Custom application error (ApiError)
   if (err instanceof ApiError) {
     return apiError(err.message, err.statusCode, err.code, err.details);
   }
 
-  // 3) Known Prisma error (unique constraint, not found, FK, etc.)
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     switch (err.code) {
       case "P2002":
@@ -116,7 +101,6 @@ export function handleApiError(err: unknown): NextResponse {
     return apiError("Data provided is invalid for the database.", 400, "PRISMA_VALIDATION_ERROR");
   }
 
-  // 4) Unexpected fallback
   console.error("[UNHANDLED_API_ERROR]", err);
   return apiError(
     process.env.NODE_ENV === "development"

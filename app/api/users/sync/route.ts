@@ -5,17 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-/**
- * POST /api/users/sync
- * ------------------------------------------------------------------------
- * Endpoint fallback untuk memastikan sesi Supabase Auth yang aktif memiliki
- * padanan profil di `public.users`. Dipanggil oleh client tepat setelah
- * proses login berhasil (lihat halaman login di TAHAP 4).
- *
- * Dalam kondisi normal, trigger SQL `on_auth_user_created` sudah menangani
- * ini secara otomatis. Endpoint ini murni sebagai jaring pengaman tambahan
- * dan juga dipakai untuk mencatat `lastLogin`.
- */
+// POST /api/users/sync
 export async function POST() {
   return withApiHandler(async () => {
     const profile = await getAuthenticatedUser();

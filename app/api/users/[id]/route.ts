@@ -21,7 +21,6 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const currentUser = await getAuthenticatedUser();
     const { id } = await params;
 
-    // User biasa hanya boleh melihat profilnya sendiri; manajerial boleh melihat semua.
     const isManagerial = currentUser.role === "OWNER" || currentUser.role === "ADMIN";
     if (!isManagerial && currentUser.id !== id) {
       throw ApiError.forbidden();
@@ -62,7 +61,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     if (!isSelf && !isManagerial) throw ApiError.forbidden();
 
-    // Hanya OWNER yang boleh mengubah role atau status aktif pengguna lain.
     if ((data.role || data.isActive !== undefined) && !isSelf) {
       requireRole(currentUser, OWNER_ONLY_ROLES);
     }
@@ -99,14 +97,11 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       data: { isActive: false, deletedAt: new Date() },
     });
 
-    // Nonaktifkan juga akses login di Supabase Auth agar konsisten.
     try {
       const supabaseAdmin = createServiceRoleClient();
       await supabaseAdmin.auth.admin.updateUserById(id, { ban_duration: "876000h" });
     } catch (e) {
       console.error("[SUPABASE_ADMIN_BAN_FAILED]", e);
-      // Tidak menggagalkan request utama; status Prisma sudah konsisten (isActive: false)
-      // dan middleware/getAuthenticatedUser tetap akan menolak user ini.
     }
 
     return apiSuccess(updated, "Akun pengguna berhasil dinonaktifkan.");

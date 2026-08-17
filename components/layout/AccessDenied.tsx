@@ -1,13 +1,6 @@
 import { ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
-/**
- * Displayed as a fallback for page content when the currently logged-in user 
- * is not allowed to access the page. This is the second layer of defense on 
- * the client side (first layer: menu items hidden in Sidebar; third layer: 
- * every API route still validates roles on the server via `requireRole()` 
- * regardless of UI actions).
- */
 export function AccessDenied({
   message = "You do not have permission to view this page.",
 }: {

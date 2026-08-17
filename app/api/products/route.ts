@@ -17,9 +17,6 @@ export async function GET(request: NextRequest) {
       Object.fromEntries(request.nextUrl.searchParams)
     );
 
-    // Prisma doesn't support cross-column comparisons (stock <= minStock) natively
-    // in the WHERE clause for relational databases, so we fetch the list of IDs
-    // that meet the condition via raw query first if needed.
     let lowStockProductIds: string[] | undefined;
     if (query.lowStockOnly) {
       const rows = await prisma.$queryRaw<{ id: string }[]>`
@@ -34,12 +31,12 @@ export async function GET(request: NextRequest) {
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
       ...(query.search
         ? {
-            OR: [
-              { name: { contains: query.search, mode: "insensitive" } },
-              { sku: { contains: query.search, mode: "insensitive" } },
-              { barcode: { contains: query.search, mode: "insensitive" } },
-            ],
-          }
+          OR: [
+            { name: { contains: query.search, mode: "insensitive" } },
+            { sku: { contains: query.search, mode: "insensitive" } },
+            { barcode: { contains: query.search, mode: "insensitive" } },
+          ],
+        }
         : {}),
       ...(lowStockProductIds ? { id: { in: lowStockProductIds } } : {}),
     };

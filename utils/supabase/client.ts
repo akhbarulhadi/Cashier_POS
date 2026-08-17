@@ -2,12 +2,7 @@
 
 import { createBrowserClient } from "@supabase/ssr";
 
-/**
- * Supabase Client - Browser Side
- * ----------------------------------------------------------------------------
- * Dipakai di dalam Client Components ("use client"). Mengelola sesi otomatis
- * lewat cookies yang kompatibel dengan Server Components/Middleware.
- */
+/** Supabase Client - Browser Side */
 export function createClient() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

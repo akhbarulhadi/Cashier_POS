@@ -20,11 +20,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-/**
- * Route prefixes allowed for the CASHIER role. If `redirectedFrom` from
- * middleware is not one of these, the cashier will be redirected to /pos instead of
- * pages meant for OWNER/ADMIN (e.g. /dashboard, /products).
- */
 const CASHIER_ALLOWED_PREFIXES = ["/pos", "/transactions", "/customers", "/settings"];
 
 function resolveRedirectTarget(role: string, redirectedFrom: string | null): string {
@@ -67,9 +62,6 @@ function LoginForm() {
         return;
       }
 
-      // Sync public.users profile + record lastLogin, while also used
-      // to determine redirect target based on role (CASHIER -> /pos,
-      // OWNER/ADMIN -> /dashboard), so cashiers aren't redirected to unauthorized pages.
       let role = "CASHIER";
       try {
         const syncRes = await fetch("/api/users/sync", { method: "POST" });

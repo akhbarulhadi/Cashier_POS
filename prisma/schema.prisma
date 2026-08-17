@@ -1,21 +1,14 @@
 // =====================================================================================
-// PRISMA SCHEMA - Aplikasi Kasir (POS) & Manajemen Toko Enterprise
+// PRISMA SCHEMA
 // =====================================================================================
 // Database   : Supabase PostgreSQL
 // ORM        : Prisma
-// Catatan Penting:
-//   - Model `User` merepresentasikan tabel `public."User"` yang SINKRON dengan
-//     `auth.users` milik Supabase Auth. Sinkronisasi dilakukan lewat:
-//       1) SQL Trigger `on_auth_user_created` pada `auth.users` (lihat migration SQL
-//          tambahan di TAHAP 2), ATAU
-//       2) Fallback pengecekan/upsert di server-side (middleware/login handler).
-//   - Kolom `id` pada `User` SENGAJA bertipe `String @id` (UUID) tanpa foreign key
-//     eksplisit ke skema `auth` karena Prisma (tanpa multiSchema penuh) tidak
-//     memodelkan tabel `auth.users` yang dikelola Supabase. Konsistensi dijaga
-//     secara aplikatif + trigger database.
-//   - Seluruh soft-delete menggunakan kolom `deletedAt` (nullable DateTime).
-//   - Snapshot data (nama produk, harga, dsb) disimpan pada `TransactionItem` agar
-//     riwayat transaksi tidak berubah walau data master produk diedit di kemudian hari.
+// 
+// Notes:
+//   - The `User` model syncs with Supabase Auth `auth.users` via SQL Trigger.
+//   - ID uses UUID to match auth.users, handled by application logic without FK.
+//   - Soft deletes use `deletedAt`.
+//   - `TransactionItem` stores snapshots (name, price) to preserve history.
 // =====================================================================================
 
 generator client {
@@ -28,14 +21,12 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// =====================================================================================
 // ENUMS
-// =====================================================================================
 
 enum UserRole {
-  OWNER // Pemilik toko - akses penuh termasuk laporan keuangan & AI Advisor
-  ADMIN // Admin/Manager - kelola produk, kategori, laporan
-  CASHIER // Kasir - hanya akses POS & transaksi miliknya
+  OWNER
+  ADMIN
+  CASHIER
 
   @@map("user_role")
 }
@@ -53,24 +44,24 @@ enum PaymentMethod {
 }
 
 enum TransactionStatus {
-  PENDING // Draft/belum dibayar penuh (hold transaction)
-  COMPLETED // Lunas, stok sudah terpotong
-  REFUNDED // Dikembalikan penuh, stok sudah dikembalikan
-  PARTIALLY_REFUNDED // Sebagian item direfund
-  CANCELLED // Dibatalkan sebelum settle (stok tidak pernah terpotong)
+  PENDING
+  COMPLETED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELLED
 
   @@map("transaction_status")
 }
 
 enum StockMovementType {
-  PURCHASE_IN // Stok masuk dari pembelian/supplier
-  SALE_OUT // Stok keluar karena penjualan (POS)
-  REFUND_IN // Stok kembali karena refund/retur
-  ADJUSTMENT_IN // Koreksi manual - penambahan
-  ADJUSTMENT_OUT // Koreksi manual - pengurangan
-  TRANSFER_IN // Transfer stok masuk antar gudang/outlet
-  TRANSFER_OUT // Transfer stok keluar antar gudang/outlet
-  INITIAL // Stok awal saat produk dibuat
+  PURCHASE_IN
+  SALE_OUT
+  REFUND_IN
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+  INITIAL
 
   @@map("stock_movement_type")
 }
@@ -84,12 +75,10 @@ enum StockMovementRefType {
   @@map("stock_movement_ref_type")
 }
 
-// =====================================================================================
-// USER (SINKRON DENGAN SUPABASE AUTH `auth.users`)
-// =====================================================================================
+// USER (SYNCED WITH SUPABASE AUTH)
 
 model User {
-  id        String    @id @db.Uuid // Sama persis dengan auth.users.id
+  id        String    @id @db.Uuid
   email     String    @unique
   fullName  String    @map("full_name")
   phone     String?
@@ -102,7 +91,6 @@ model User {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  // Relasi: transaksi yang dilayani oleh kasir/user ini
   transactions   Transaction[]      @relation("CashierTransactions")
   stockMovements StockMovement[]    @relation("UserStockMovements")
   auditLogs      AuditLog[]
@@ -114,9 +102,7 @@ model User {
   @@map("users")
 }
 
-// =====================================================================================
-// KATEGORI PRODUK
-// =====================================================================================
+// CATEGORIES
 
 model Category {
   id          String  @id @default(uuid()) @db.Uuid
@@ -134,13 +120,11 @@ model Category {
   @@map("categories")
 }
 
-// =====================================================================================
-// PRODUK & INVENTARIS
-// =====================================================================================
+// PRODUCTS
 
 model Product {
   id         String  @id @default(uuid()) @db.Uuid
-  sku        String  @unique // Stock Keeping Unit
+  sku        String  @unique
   barcode    String? @unique
   name       String
   categoryId String  @map("category_id") @db.Uuid
@@ -149,12 +133,12 @@ model Product {
   description String?
   imageUrl    String? @map("image_url")
 
-  costPrice Decimal @map("cost_price") @db.Decimal(14, 2) // HPP
-  sellPrice Decimal @map("sell_price") @db.Decimal(14, 2) // Harga jual
+  costPrice Decimal @map("cost_price") @db.Decimal(14, 2)
+  sellPrice Decimal @map("sell_price") @db.Decimal(14, 2)
 
-  unit     String @default("pcs") // pcs, kg, box, dll
-  stock    Int    @default(0) // Stok real-time
-  minStock Int    @default(5) @map("min_stock") // Batas alert stok menipis
+  unit     String @default("pcs")
+  stock    Int    @default(0)
+  minStock Int    @default(5) @map("min_stock")
 
   isActive Boolean @default(true) @map("is_active")
 
@@ -174,9 +158,7 @@ model Product {
   @@map("products")
 }
 
-// =====================================================================================
-// RIWAYAT MUTASI STOK (STOCK MOVEMENT / LEDGER)
-// =====================================================================================
+// STOCK MOVEMENTS
 
 model StockMovement {
   id        String            @id @default(uuid()) @db.Uuid
@@ -185,9 +167,9 @@ model StockMovement {
 
   type          StockMovementType    @map("type")
   refType       StockMovementRefType @default(MANUAL) @map("ref_type")
-  referenceId   String?              @map("reference_id") @db.Uuid // ID transaksi/PO terkait
+  referenceId   String?              @map("reference_id") @db.Uuid
 
-  quantity     Int // Selalu positif; makna arah ditentukan oleh `type`
+  quantity     Int
   stockBefore  Int @map("stock_before")
   stockAfter   Int @map("stock_after")
 
@@ -205,9 +187,7 @@ model StockMovement {
   @@map("stock_movements")
 }
 
-// =====================================================================================
-// PELANGGAN (CRM SEDERHANA)
-// =====================================================================================
+// CUSTOMERS
 
 model Customer {
   id      String  @id @default(uuid()) @db.Uuid
@@ -231,13 +211,11 @@ model Customer {
   @@map("customers")
 }
 
-// =====================================================================================
-// TRANSAKSI (HEADER)
-// =====================================================================================
+// TRANSACTIONS
 
 model Transaction {
   id            String @id @default(uuid()) @db.Uuid
-  invoiceNumber String @unique @map("invoice_number") // Format: INV-YYYYMMDD-XXXX
+  invoiceNumber String @unique @map("invoice_number")
 
   customerId String?   @map("customer_id") @db.Uuid
   customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
@@ -264,9 +242,7 @@ model Transaction {
   items   TransactionItem[]
   refunds RefundTransaction[]
 
-  // Catatan: StockMovement.referenceId TIDAK memakai foreign key langsung ke
-  // Transaction karena bersifat polymorphic (bisa merujuk ke Transaction,
-  // Purchase Order, atau Stock Opname sesuai kolom `refType`).
+
 
   @@index([cashierId])
   @@index([customerId])
@@ -276,9 +252,7 @@ model Transaction {
   @@map("transactions")
 }
 
-// =====================================================================================
-// ITEM TRANSAKSI (DETAIL) - MENYIMPAN SNAPSHOT DATA PRODUK SAAT TRANSAKSI
-// =====================================================================================
+// TRANSACTION ITEMS (SNAPSHOTS)
 
 model TransactionItem {
   id            String      @id @default(uuid()) @db.Uuid
@@ -288,7 +262,6 @@ model TransactionItem {
   productId String  @map("product_id") @db.Uuid
   product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  // Snapshot data produk pada saat transaksi terjadi
   productName String  @map("product_name")
   sku         String
   costPrice   Decimal @map("cost_price") @db.Decimal(14, 2)
@@ -296,7 +269,7 @@ model TransactionItem {
 
   quantity       Int
   discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(14, 2)
-  subtotal       Decimal @db.Decimal(14, 2) // (sellPrice * qty) - discountAmount
+  subtotal       Decimal @db.Decimal(14, 2)
 
   refundedQty Int @default(0) @map("refunded_qty")
 
@@ -309,9 +282,7 @@ model TransactionItem {
   @@map("transaction_items")
 }
 
-// =====================================================================================
-// REFUND / RETUR TRANSAKSI
-// =====================================================================================
+// REFUNDS
 
 model RefundTransaction {
   id            String      @id @default(uuid()) @db.Uuid
@@ -354,17 +325,15 @@ model RefundItem {
   @@map("refund_items")
 }
 
-// =====================================================================================
-// AUDIT LOG (JEJAK AKTIVITAS PENTING - opsional tapi krusial untuk enterprise)
-// =====================================================================================
+// AUDIT LOGS
 
 model AuditLog {
   id     String  @id @default(uuid()) @db.Uuid
   userId String? @map("user_id") @db.Uuid
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  action     String // e.g. "PRODUCT_CREATE", "TRANSACTION_REFUND", "LOGIN"
-  entityType String? @map("entity_type") // e.g. "Product", "Transaction"
+  action     String
+  entityType String? @map("entity_type")
   entityId   String? @map("entity_id")
   metadata   Json?
 
@@ -379,9 +348,7 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// =====================================================================================
-// PENGATURAN TOKO (STORE SETTINGS) - dipakai untuk struk, PPN default, dsb
-// =====================================================================================
+// STORE SETTINGS
 
 model StoreSetting {
   id String @id @default(uuid()) @db.Uuid
@@ -402,9 +369,7 @@ model StoreSetting {
   @@map("store_settings")
 }
 
-// =====================================================================================
-// AI CHAT SESSION & MESSAGES - Menyimpan riwayat percakapan AI Business Advisor
-// =====================================================================================
+// AI CHAT SESSIONS
 
 model AiChatSession {
   id     String @id @default(uuid()) @db.Uuid
@@ -427,7 +392,7 @@ model AiChatMessage {
   sessionId String        @map("session_id") @db.Uuid
   session   AiChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  role    String // "user" | "assistant"
+  role    String
   content String
 
   createdAt DateTime @default(now()) @map("created_at")

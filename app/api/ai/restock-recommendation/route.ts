@@ -45,7 +45,6 @@ function buildRuleBasedRecommendations(insights: ProductInsight[]): {
         urgency = "MEDIUM";
       }
 
-      // Target restock: cukup untuk 14 hari penjualan ke depan + buffer stok minimum.
       const targetDays = 14;
       const projectedNeed = Math.ceil(p.avgDailySales * targetDays);
       const suggestedRestockQty = Math.max(
@@ -138,14 +137,11 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Batasi konteks yang dikirim ke AI hanya product yang relevan (stok menipis
-    // atau terjual dalam periode ini) agar prompt tetap ringkas & fokus.
     const relevantInsights = insights
       .filter((p) => p.currentStock <= p.minStock * 2 || p.quantitySoldInPeriod > 0)
       .sort((a, b) => (a.estimatedDaysUntilStockout ?? 999) - (b.estimatedDaysUntilStockout ?? 999))
       .slice(0, 40);
 
-    // Jika Groq belum dikonfigurasi dengan API key asli, langsung pakai fallback rule-based.
     if (!isGroqConfigured()) {
       const { recommendations, summary } = buildRuleBasedRecommendations(relevantInsights);
       return apiSuccess(
@@ -204,7 +200,6 @@ export async function GET(request: NextRequest) {
       );
     } catch (error) {
       console.error("[GROQ_RESTOCK_ERROR]", error);
-      // Fallback graceful: tetap kembalikan rekomendasi rule-based agar fitur tidak mati total.
       const { recommendations, summary } = buildRuleBasedRecommendations(relevantInsights);
       return apiSuccess(
         {

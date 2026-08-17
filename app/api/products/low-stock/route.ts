@@ -4,11 +4,7 @@ import { getAuthenticatedUser } from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/products/low-stock
- * Mengembalikan seluruh product aktif yang stoknya <= stok minimum.
- * Dipakai oleh widget "Low Stock Alert" di Dashboard.
- */
+/** GET /api/products/low-stock */
 export async function GET() {
   return withApiHandler(async () => {
     await getAuthenticatedUser();

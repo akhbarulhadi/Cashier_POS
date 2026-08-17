@@ -5,10 +5,7 @@ import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-
 
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/reports/sales?startDate=&endDate=&groupBy=day|month
- * Data tren penjualan per periode, dipakai untuk grafik (recharts) di halaman Reports.
- */
+/** GET /api/reports/sales?startDate=&endDate=&groupBy=day|month */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
     const user = await getAuthenticatedUser();
@@ -27,8 +24,8 @@ export async function GET(request: NextRequest) {
 
     const rows = groupBy === "month"
       ? await prisma.$queryRaw<
-          { period: Date; total_revenue: string; total_transactions: bigint }[]
-        >`
+        { period: Date; total_revenue: string; total_transactions: bigint }[]
+      >`
           SELECT
             date_trunc('month', created_at) AS period,
             SUM(grand_total)::text AS total_revenue,
@@ -40,8 +37,8 @@ export async function GET(request: NextRequest) {
           ORDER BY period ASC
         `
       : await prisma.$queryRaw<
-          { period: Date; total_revenue: string; total_transactions: bigint }[]
-        >`
+        { period: Date; total_revenue: string; total_transactions: bigint }[]
+      >`
           SELECT
             date_trunc('day', created_at) AS period,
             SUM(grand_total)::text AS total_revenue,

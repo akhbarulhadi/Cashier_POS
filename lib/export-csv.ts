@@ -1,10 +1,3 @@
-/**
- * Utilitas Ekspor CSV (client-side, tanpa dependency tambahan)
- * ============================================================================
- * Mengubah array of objects menjadi file CSV dan langsung memicu unduhan di
- * browser. Dipakai di halaman Riwayat Transaksi & Laporan untuk ekspor data.
- */
-
 export interface CsvColumn<T> {
   header: string;
   accessor: (row: T) => string | number | null | undefined;
@@ -12,7 +5,6 @@ export interface CsvColumn<T> {
 
 function escapeCsvValue(value: string | number | null | undefined): string {
   const str = value === null || value === undefined ? "" : String(value);
-  // Bungkus dengan tanda kutip jika mengandung koma, kutip, atau baris baru.
   if (/[",\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -27,7 +19,6 @@ export function exportToCsv<T>(filename: string, columns: CsvColumn<T>[], rows: 
     columns.map((c) => escapeCsvValue(c.accessor(row))).join(",")
   );
 
-  // Tambahkan BOM UTF-8 agar karakter (mis. "Rp") tampil benar saat dibuka di Excel.
   const csvContent = "\uFEFF" + [headerLine, ...dataLines].join("\r\n");
 
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

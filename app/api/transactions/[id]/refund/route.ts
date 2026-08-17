@@ -10,14 +10,7 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
-/**
- * POST /api/transactions/:id/refund
- * ------------------------------------------------------------------------
- * Memproses refund penuh atau sebagian (per-item) dari sebuah transaksi.
- * Khusus OWNER/ADMIN. Seluruh proses (catat refund, kembalikan stok, update
- * status transaksi & statistik customer) dibungkus dalam SATU Prisma
- * Transaction agar aman dari kegagalan parsial.
- */
+/** POST /api/transactions/:id/refund */
 export async function POST(request: NextRequest, { params }: Params) {
   return withApiHandler(async () => {
     const handledBy = await getAuthenticatedUser();
@@ -44,16 +37,14 @@ export async function POST(request: NextRequest, { params }: Params) {
         );
       }
 
-      // Tentukan item mana saja yang akan direfund & berapa kuantitasnya.
-      // Jika `items` tidak dikirim, maka refund SELURUH sisa kuantitas yang belum direfund.
       const refundPlan = input.items?.length
         ? input.items
         : transaction.items
-            .filter((it) => it.refundedQty < it.quantity)
-            .map((it) => ({
-              transactionItemId: it.id,
-              quantity: it.quantity - it.refundedQty,
-            }));
+          .filter((it) => it.refundedQty < it.quantity)
+          .map((it) => ({
+            transactionItemId: it.id,
+            quantity: it.quantity - it.refundedQty,
+          }));
 
       if (refundPlan.length === 0) {
         throw ApiError.conflict("Tidak ada item yang tersisa untuk direfund.");
@@ -85,7 +76,6 @@ export async function POST(request: NextRequest, { params }: Params) {
         }
 
         // Harga rata-rata per unit (memperhitungkan diskon per baris) dipakai
-        // untuk menghitung nominal refund secara proporsional & konsisten.
         const avgUnitPrice = transactionItem.subtotal.div(transactionItem.quantity);
         const refundAmount = avgUnitPrice.mul(plan.quantity);
 
@@ -124,7 +114,6 @@ export async function POST(request: NextRequest, { params }: Params) {
         });
       }
 
-      // Buat record RefundTransaction + RefundItem
       const refund = await tx.refundTransaction.create({
         data: {
           transactionId: transaction.id,
@@ -136,7 +125,6 @@ export async function POST(request: NextRequest, { params }: Params) {
         include: { items: true },
       });
 
-      // Tentukan status transaksi baru: REFUNDED (semua item habis) atau PARTIALLY_REFUNDED
       const refreshedItems = await tx.transactionItem.findMany({
         where: { transactionId: transaction.id },
       });
@@ -153,7 +141,6 @@ export async function POST(request: NextRequest, { params }: Params) {
         },
       });
 
-      // Sesuaikan statistik customer jika ada
       if (transaction.customerId) {
         await tx.customer.update({
           where: { id: transaction.customerId },

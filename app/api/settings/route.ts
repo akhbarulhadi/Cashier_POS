@@ -24,7 +24,6 @@ export async function GET() {
 
     let settings = await prisma.storeSetting.findFirst();
 
-    // Auto-provision default settings jika belum pernah dikonfigurasi
     if (!settings) {
       settings = await prisma.storeSetting.create({
         data: {

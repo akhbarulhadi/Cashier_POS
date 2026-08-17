@@ -22,10 +22,6 @@ interface DeleteConfirmDialogProps {
   isLoading?: boolean;
 }
 
-/**
- * Generic AlertDialog wrapper for destructive action confirmation
- * (delete product, delete category, etc). Reusable across modules.
- */
 export function DeleteConfirmDialog({
   trigger,
   title,

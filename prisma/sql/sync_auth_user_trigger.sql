@@ -1,18 +1,15 @@
 -- =====================================================================================
--- SQL TRIGGER: Sinkronisasi Supabase Auth (auth.users) <-> Prisma (public.users)
+-- SQL TRIGGER: Sync Supabase Auth (auth.users) <-> Prisma (public.users)
 -- =====================================================================================
--- CARA PAKAI:
---   1. Jalankan `prisma migrate dev` terlebih dahulu agar tabel `public.users`
---      (beserta enum `user_role`) sudah terbentuk sesuai `schema.prisma`.
---   2. Jalankan file SQL ini SATU KALI lewat Supabase SQL Editor
---      (Dashboard > SQL Editor > New Query > paste > Run).
---   3. Trigger ini melengkapi (bukan menggantikan) fallback upsert manual yang
---      ada di `lib/auth-helpers.ts` (getAuthenticatedUser()).
+-- USAGE:
+--   1. Run `prisma migrate dev` first so the `public.users` table
+--      (and `user_role` enum) are created from `schema.prisma`.
+--   2. Run this SQL file ONCE via Supabase SQL Editor.
+--   3. This trigger complements the server-side fallback upsert
+--      in `lib/auth-helpers.ts` (getAuthenticatedUser()).
 -- =====================================================================================
 
--- -------------------------------------------------------------------------------------
--- 1) FUNCTION: Membuat profil public.users saat ada pendaftaran user baru
--- -------------------------------------------------------------------------------------
+-- Create public.users profile when a new user registers
 create or replace function public.handle_new_auth_user()
 returns trigger
 language plpgsql
@@ -49,9 +46,7 @@ create trigger on_auth_user_created
   for each row
   execute procedure public.handle_new_auth_user();
 
--- -------------------------------------------------------------------------------------
--- 2) FUNCTION: Sinkronisasi saat email user diubah lewat Supabase Auth
--- -------------------------------------------------------------------------------------
+-- Sync when user email is changed via Supabase Auth
 create or replace function public.handle_auth_user_email_update()
 returns trigger
 language plpgsql
@@ -76,9 +71,7 @@ create trigger on_auth_user_email_updated
   for each row
   execute procedure public.handle_auth_user_email_update();
 
--- -------------------------------------------------------------------------------------
--- 3) FUNCTION: Soft-delete profil public.users saat user dihapus dari auth.users
--- -------------------------------------------------------------------------------------
+-- Soft-delete public.users profile when user is deleted from auth.users
 create or replace function public.handle_auth_user_deleted()
 returns trigger
 language plpgsql
@@ -102,14 +95,12 @@ create trigger on_auth_user_deleted
   for each row
   execute procedure public.handle_auth_user_deleted();
 
--- -------------------------------------------------------------------------------------
--- 4) ROW LEVEL SECURITY (opsional, disarankan)
--- -------------------------------------------------------------------------------------
--- Karena akses data dilakukan lewat Prisma menggunakan koneksi database langsung
--- (bukan lewat Supabase client dengan anon key), RLS tidak wajib mem-block akses
--- Prisma. Namun jika tabel `public.users` juga diakses langsung lewat Supabase
--- client (mis. untuk fitur avatar upload), aktifkan RLS berikut sebagai lapisan
--- keamanan tambahan:
+-- ROW LEVEL SECURITY (optional, recommended)
+-- Because data access is performed via Prisma using a direct database connection
+-- (not via Supabase client with anon key), RLS is not required to block 
+-- Prisma access. However, if the `public.users` table is also accessed directly 
+-- via Supabase client (e.g., for avatar upload features), enable the following RLS 
+-- as an additional security layer:
 --
 -- alter table public.users enable row level security;
 --

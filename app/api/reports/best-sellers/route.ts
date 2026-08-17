@@ -5,11 +5,7 @@ import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-
 
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/reports/best-sellers?startDate=&endDate=&limit=10
- * Daftar product terlaris berdasarkan kuantitas terjual dalam periode tertentu.
- * Juga dipakai sebagai input konteks untuk AI Restock Recommendation (TAHAP 3).
- */
+/** GET /api/reports/best-sellers?startDate=&endDate=&limit=10 */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
     const user = await getAuthenticatedUser();
@@ -39,7 +35,6 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    // Lampirkan info stok terkini agar tabel di UI bisa langsung menandai perlu restock atau tidak
     const productIds = grouped.map((g) => g.productId);
     const products = await prisma.product.findMany({
       where: { id: { in: productIds } },

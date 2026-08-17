@@ -1,17 +1,17 @@
 /**
  * Prisma Seed Script
  * ============================================================================
- * Mengisi data awal yang AMAN dijalankan tanpa bergantung pada akun Supabase
- * Auth (kategori, produk contoh, pelanggan contoh, & pengaturan toko default).
+ * Populates initial data that is SAFE to execute without relying on Supabase
+ * Auth accounts (categories, sample products, sample customers, & default store settings).
  *
- * User/staff SENGAJA TIDAK di-seed di sini karena harus dibuat lewat Supabase
- * Auth Admin API (lihat `POST /api/users`) agar password ter-hash & sesi login
- * benar-benar valid. Buat akun OWNER pertama Anda lewat:
- *   1. Supabase Dashboard > Authentication > Add User (set email+password), ATAU
- *   2. `supabase.auth.admin.createUser()` lewat script terpisah,
- *   lalu jalankan: `UPDATE public.users SET role = 'OWNER' WHERE email = '...';`
+ * Users/staff are INTENTIONALLY NOT seeded here because they must be created via
+ * the Supabase Auth Admin API (see `POST /api/users`) to ensure passwords are 
+ * hashed and login sessions are completely valid. Create your first OWNER account via:
+ *   1. Supabase Dashboard > Authentication > Add User (set email+password), OR
+ *   2. `supabase.auth.admin.createUser()` through a separate script,
+ *   then run: `UPDATE public.users SET role = 'OWNER' WHERE email = '...';`
  *
- * Jalankan dengan: `npm run prisma:seed`
+ * Run with: `npm run prisma:seed`
  * ============================================================================
  */
 

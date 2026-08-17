@@ -6,11 +6,7 @@ import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-
 
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/reports/summary?startDate=&endDate=
- * Statistik utama untuk BI Dashboard: total pendapatan, jumlah transaksi,
- * rata-rata nilai transaksi, product terlaris, dan jumlah product stok menipis.
- */
+/** GET /api/reports/summary?startDate=&endDate= */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
     const user = await getAuthenticatedUser();
@@ -79,10 +75,10 @@ export async function GET(request: NextRequest) {
         totalCustomers,
         bestSellingProduct: bestSeller[0]
           ? {
-              productId: bestSeller[0].productId,
-              productName: bestSeller[0].productName,
-              quantitySold: bestSeller[0]._sum.quantity ?? 0,
-            }
+            productId: bestSeller[0].productId,
+            productName: bestSeller[0].productName,
+            quantitySold: bestSeller[0]._sum.quantity ?? 0,
+          }
           : null,
       },
       "Ringkasan statistik dashboard berhasil diambil."

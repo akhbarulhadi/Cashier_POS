@@ -1,8 +1,3 @@
-/**
- * Custom error class for the application.
- * Thrown inside service/route handlers, then caught by
- * `handleApiError` (lib/api-response.ts) and converted to a JSON response.
- */
 export class ApiError extends Error {
   statusCode: number;
   code: string;

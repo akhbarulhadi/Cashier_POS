@@ -2,16 +2,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient as createSupabaseJsClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-/**
- * Supabase Client - Server Side
- * ----------------------------------------------------------------------------
- * Dipakai di dalam Server Components, Server Actions, dan Route Handlers
- * (`app/api/**\/route.ts`). Sesi dibaca/ditulis lewat cookie store Next.js.
- *
- * Catatan: Pemanggilan `cookies().set()` di dalam Server Component murni akan
- * di-ignore oleh Next.js (read-only). Ini aman selama middleware sudah
- * menangani refresh token secara berkala (lihat `utils/supabase/middleware.ts`).
- */
+/** Supabase Client - Server Side */
 export async function createClient() {
   const cookieStore = await cookies();
 
@@ -31,8 +22,6 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             );
           } catch {
-            // Diabaikan jika dipanggil dari Server Component (read-only context).
-            // Middleware bertanggung jawab me-refresh sesi pada kasus ini.
           }
         },
       },
@@ -40,13 +29,7 @@ export async function createClient() {
   );
 }
 
-/**
- * Supabase Client dengan Service Role Key.
- * ----------------------------------------------------------------------------
- * HANYA dipakai di server (API routes tertentu) untuk operasi administratif
- * yang butuh bypass Row Level Security, contoh: sinkronisasi profil user,
- * operasi admin pada auth.users. JANGAN PERNAH expose ke client.
- */
+/** Supabase Client dengan Service Role Key. */
 export function createServiceRoleClient() {
   return createSupabaseJsClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

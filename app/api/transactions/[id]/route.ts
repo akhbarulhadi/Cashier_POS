@@ -36,12 +36,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   });
 }
 
-/**
- * DELETE /api/transactions/:id - membatalkan transaksi berstatus PENDING.
- * Transaksi COMPLETED tidak boleh dibatalkan lewat endpoint ini; gunakan
- * endpoint refund (`/api/transactions/:id/refund`) agar stok & jejak audit
- * tetap konsisten.
- */
+/** DELETE /api/transactions/:id - membatalkan transaksi berstatus PENDING. */
 export async function DELETE(_request: NextRequest, { params }: Params) {
   return withApiHandler(async () => {
     const user = await getAuthenticatedUser();

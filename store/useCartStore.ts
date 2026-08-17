@@ -4,17 +4,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { PaymentMethod } from "@prisma/client";
 
-/**
- * Zustand Store - Keranjang Belanja & Sesi Kasir (POS)
- * ============================================================================
- * Ini adalah "jantung" halaman POS. Dipisah dari state React biasa agar:
- *   - Tidak ada prop-drilling antara ProductGrid, CartPanel, PaymentDialog.
- *   - Performa maksimal (hanya komponen yang subscribe ke slice tertentu yang
- *     re-render, misalnya total harga tidak perlu re-render ProductGrid).
- *   - State bertahan (persist) ke sessionStorage, sehingga refresh halaman
- *     tidak menghilangkan keranjang yang sedang diproses kasir.
- * ============================================================================
- */
+/** Zustand Store - Keranjang Belanja & Sesi Kasir (POS) */
 
 export interface CartItem {
   productId: string;
@@ -25,10 +15,8 @@ export interface CartItem {
   unit: string;
   sellPrice: number;
   costPrice: number;
-  /** Snapshot stok tersedia saat produk ditambahkan/diperbarui - untuk validasi UI. */
   availableStock: number;
   quantity: number;
-  /** Diskon nominal (Rupiah) khusus untuk baris/item ini. */
   discountAmount: number;
 }
 
@@ -64,9 +52,7 @@ interface CartState {
 
   heldOrders: HeldOrder[];
 
-  // ---------------------------------------------------------------------
   // ACTIONS - Manajemen Item
-  // ---------------------------------------------------------------------
   addItem: (product: Omit<CartItem, "quantity" | "discountAmount">, qty?: number) => void;
   increaseQuantity: (productId: string) => void;
   decreaseQuantity: (productId: string) => void;
@@ -74,35 +60,24 @@ interface CartState {
   setItemDiscount: (productId: string, discountAmount: number) => void;
   removeItem: (productId: string) => void;
 
-  // ---------------------------------------------------------------------
   // ACTIONS - Pelanggan & Diskon/Pajak Global
-  // ---------------------------------------------------------------------
   setCustomer: (customer: SelectedCustomer | null) => void;
   setGlobalDiscountAmount: (amount: number) => void;
   setTaxPercent: (percent: number) => void;
 
-  // ---------------------------------------------------------------------
   // ACTIONS - Pembayaran
-  // ---------------------------------------------------------------------
   setPaymentMethod: (method: PaymentMethod) => void;
   setPaidAmount: (amount: number) => void;
   setNotes: (notes: string) => void;
 
-  // ---------------------------------------------------------------------
   // ACTIONS - Hold/Park Order (fitur "simpan sementara" transaksi)
-  // ---------------------------------------------------------------------
   holdCurrentCart: (label: string) => void;
   resumeHeldOrder: (id: string) => void;
   deleteHeldOrder: (id: string) => void;
 
-  // ---------------------------------------------------------------------
   // ACTIONS - Reset
-  // ---------------------------------------------------------------------
   clearCart: () => void;
 
-  // ---------------------------------------------------------------------
-  // GETTERS (dihitung on-demand, TIDAK reaktif otomatis - panggil ulang di
-  // dalam komponen setiap render, atau gunakan selector individual di bawah)
   // ---------------------------------------------------------------------
   getSubtotal: () => number;
   getTotalItemDiscount: () => number;
@@ -314,7 +289,6 @@ export const useCartStore = create<CartState>()(
     {
       name: "pos-cart-storage",
       storage: createJSONStorage(() => sessionStorage),
-      // Hanya persist data yang perlu bertahan lintas refresh; getter/actions tidak perlu disimpan.
       partialize: (state) => ({
         items: state.items,
         customer: state.customer,

@@ -41,11 +41,11 @@ export async function GET(request: NextRequest) {
         : {}),
       ...(query.startDate || query.endDate
         ? {
-            createdAt: {
-              ...(query.startDate ? { gte: query.startDate } : {}),
-              ...(query.endDate ? { lte: query.endDate } : {}),
-            },
-          }
+          createdAt: {
+            ...(query.startDate ? { gte: query.startDate } : {}),
+            ...(query.endDate ? { lte: query.endDate } : {}),
+          },
+        }
         : {}),
     };
 
@@ -73,15 +73,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-/**
- * POST /api/transactions - CHECKOUT (inti sistem POS)
- * ------------------------------------------------------------------------
- * WAJIB atomic: pembuatan transaksi header, item, mutasi stok, dan update
- * statistik customer harus sukses/gagal bersamaan (Prisma $transaction).
- * Stok dikurangi menggunakan conditional atomic update (`updateMany` dengan
- * `stock: { gte: qty }`) untuk mencegah race condition / stok minus saat ada
- * beberapa cashier checkout bersamaan pada product yang sama.
- */
+/** POST /api/transactions - CHECKOUT (inti sistem POS) */
 export async function POST(request: NextRequest) {
   return withApiHandler(async () => {
     const cashier = await getAuthenticatedUser();
@@ -90,7 +82,6 @@ export async function POST(request: NextRequest) {
     const input = checkoutSchema.parse(body);
 
     const transaction = await prisma.$transaction(async (tx) => {
-      // 1) Ambil data product terbaru untuk seluruh item di keranjang
       const productIds = input.items.map((i) => i.productId);
       const products = await tx.product.findMany({
         where: { id: { in: productIds } },
@@ -98,7 +89,6 @@ export async function POST(request: NextRequest) {
 
       const productMap = new Map(products.map((p) => [p.id, p]));
 
-      // 2) Validasi ketersediaan & status setiap product
       for (const item of input.items) {
         const product = productMap.get(item.productId);
         if (!product || product.deletedAt) {
@@ -153,7 +143,6 @@ export async function POST(request: NextRequest) {
       }
       const changeAmount = paidAmount.sub(grandTotal);
 
-      // 4) Buat header transaksi
       const createdTransaction = await tx.transaction.create({
         data: {
           invoiceNumber: generateInvoiceNumber(),
@@ -184,8 +173,6 @@ export async function POST(request: NextRequest) {
         });
 
         if (updateResult.count === 0) {
-          // Melempar error di sini akan otomatis rollback SELURUH transaksi Prisma,
-          // termasuk header & item yang baru saja dibuat di atas.
           throw ApiError.unprocessable(
             `Stok product "${product.name}" tidak mencukupi saat checkout (kemungkinan diserobot transaksi lain).`
           );
@@ -211,7 +198,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // 6) Update statistik customer (jika ada)
       if (input.customerId) {
         await tx.customer.update({
           where: { id: input.customerId },

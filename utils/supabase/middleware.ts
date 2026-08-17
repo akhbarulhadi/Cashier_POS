@@ -1,11 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/**
- * Daftar prefix rute yang WAJIB login untuk diakses.
- * Route group `(dashboard)` & `(auth)` tidak muncul di URL, jadi path aktual
- * adalah nama foldernya langsung (mis. /pos, /dashboard, /products, dst).
- */
+/** Daftar prefix rute yang WAJIB login untuk diakses. */
 const PROTECTED_PATH_PREFIXES = [
   "/dashboard",
   "/pos",
@@ -52,8 +48,6 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // PENTING: JANGAN hapus baris ini. `getUser()` akan me-refresh token secara
-  // otomatis jika sudah kedaluwarsa, dan menuliskan cookie baru lewat setAll().
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -71,14 +65,12 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith(prefix)
   );
 
-  // Belum login tapi mengakses halaman dashboard/protected -> redirect ke login
   if (!user && isProtectedPath) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("redirectedFrom", pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Belum login tapi mengakses API yang dilindungi -> 401 JSON, bukan redirect HTML
   if (!user && isApiPath && !isPublicApiPath) {
     return NextResponse.json(
       {
@@ -90,7 +82,6 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  // Sudah login tapi mengakses halaman login/register -> redirect ke dashboard
   if (user && isAuthOnlyPath) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }

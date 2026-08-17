@@ -13,7 +13,6 @@ interface TopProductAggregate {
   _sum: { quantity: number | null };
 }
 
-/** Mengambil ringkasan kondisi toko secara real-time untuk "menjangkarkan" jawaban AI pada data nyata. */
 async function getStoreContextSnapshot() {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -76,10 +75,9 @@ function buildSystemPrompt(context: Awaited<ReturnType<typeof getStoreContextSna
     `- Jumlah product dengan stok menipis: ${context.lowStockCount}\n` +
     `- Jumlah product aktif: ${context.totalActiveProducts}\n` +
     `- Jumlah customer terdaftar: ${context.totalCustomers}\n` +
-    `- Product terlaris bulan ini: ${
-      context.topProductsThisMonth.length > 0
-        ? context.topProductsThisMonth.map((p) => `${p.name} (${p.quantitySold} unit)`).join(", ")
-        : "Belum ada data penjualan bulan ini."
+    `- Product terlaris bulan ini: ${context.topProductsThisMonth.length > 0
+      ? context.topProductsThisMonth.map((p) => `${p.name} (${p.quantitySold} unit)`).join(", ")
+      : "Belum ada data penjualan bulan ini."
     }\n` +
     "=== AKHIR KONTEKS ==="
   );
@@ -94,13 +92,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const input = chatRequestSchema.parse(body);
 
-    // Ambil pesan terakhir dari user (yang baru dikirim)
     const lastUserMessage = input.messages[input.messages.length - 1];
 
-    // Tentukan atau buat session
     let sessionId = input.sessionId ?? null;
     if (!sessionId) {
-      // Buat session baru, judul diambil dari pesan pertama user (max 80 chars)
       const titleCandidate = lastUserMessage?.content?.slice(0, 80) || "Sesi Baru";
       const session = await prisma.aiChatSession.create({
         data: {
@@ -115,7 +110,6 @@ export async function POST(request: NextRequest) {
         where: { id: sessionId },
       });
       if (!existingSession || existingSession.userId !== user.id) {
-        // Session tidak valid, buat baru
         const session = await prisma.aiChatSession.create({
           data: {
             userId: user.id,
@@ -126,7 +120,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Simpan pesan user ke database
     if (lastUserMessage && lastUserMessage.role === "user") {
       await prisma.aiChatMessage.create({
         data: {
@@ -142,7 +135,6 @@ export async function POST(request: NextRequest) {
         "Fitur AI Business Advisor belum aktif karena `GROQ_API_KEY` masih menggunakan nilai placeholder/dummy. " +
         "Silakan atur API key asli dari https://console.groq.com/keys pada file `.env` (variabel `GROQ_API_KEY`) untuk mengaktifkan asisten cerdas ini.";
 
-      // Simpan response fallback ke database
       await prisma.aiChatMessage.create({
         data: { sessionId, role: "assistant", content: fallbackReply },
       });
@@ -176,7 +168,6 @@ export async function POST(request: NextRequest) {
         completion.choices[0]?.message?.content ||
         "Maaf, saya tidak dapat menghasilkan jawaban saat ini. Silakan coba lagi.";
 
-      // Simpan reply AI ke database
       await prisma.aiChatMessage.create({
         data: { sessionId, role: "assistant", content: reply },
       });
@@ -194,7 +185,6 @@ export async function POST(request: NextRequest) {
       const errorReply =
         "Terjadi kendala saat menghubungi layanan AI (Groq). Periksa kembali validitas `GROQ_API_KEY` Anda, atau coba lagi dalam beberapa saat.";
 
-      // Simpan error reply ke database juga agar konteks percakapan tetap lengkap
       await prisma.aiChatMessage.create({
         data: { sessionId, role: "assistant", content: errorReply },
       });

@@ -1,13 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 
-/**
- * Prisma Client Singleton
- * ----------------------------------------------------------------------------
- * Mencegah pembuatan koneksi baru yang berlebihan pada mode development
- * (Next.js melakukan hot-reload module secara berkala). Di production,
- * satu instance dibuat per proses server.
- */
-
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

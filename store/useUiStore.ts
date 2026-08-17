@@ -2,16 +2,7 @@
 
 import { create } from "zustand";
 
-/**
- * Zustand Store - Sesi UI Umum
- * ============================================================================
- * Menyimpan state UI lintas halaman yang tidak berhubungan langsung dengan
- * data keranjang, seperti status sidebar, filter pencarian POS, dan dialog
- * yang sedang terbuka. Dipisah dari `useCartStore` agar setiap store punya
- * tanggung jawab (concern) yang jelas & tidak saling memicu re-render.
- * ============================================================================
- */
-
+/** Zustand Store - Sesi UI Umum*/
 interface UiState {
   isSidebarCollapsed: boolean;
   toggleSidebar: () => void;
@@ -21,13 +12,12 @@ interface UiState {
   toggleMobileSidebar: () => void;
   setMobileSidebarOpen: (value: boolean) => void;
 
-  // Filter & pencarian di halaman POS
   posSearchQuery: string;
   setPosSearchQuery: (value: string) => void;
   posSelectedCategoryId: string | null;
   setPosSelectedCategoryId: (id: string | null) => void;
 
-  // Dialog pembayaran & struk
+  // Payment dialog & receipt
   isPaymentDialogOpen: boolean;
   openPaymentDialog: () => void;
   closePaymentDialog: () => void;

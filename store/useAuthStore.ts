@@ -3,15 +3,7 @@
 import { create } from "zustand";
 import type { UserRole } from "@prisma/client";
 
-/**
- * Zustand Store - Profil Pengguna Aktif (Client-Side Cache)
- * ============================================================================
- * Sumber kebenaran (source of truth) tetap sesi Supabase Auth + tabel
- * `public.users` di server. Store ini HANYA cache ringan di client agar
- * komponen (Sidebar, Navbar, guard tombol berbasis role) tidak perlu
- * fetch berulang ke `/api/users/sync` setiap render.
- * ============================================================================
- */
+/** Zustand Store - Profil Pengguna Aktif (Client-Side Cache) */
 
 export interface AuthProfile {
   id: string;

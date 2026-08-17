@@ -29,11 +29,11 @@ export async function GET(request: NextRequest) {
       ...(query.role ? { role: query.role } : {}),
       ...(query.search
         ? {
-            OR: [
-              { fullName: { contains: query.search, mode: "insensitive" } },
-              { email: { contains: query.search, mode: "insensitive" } },
-            ],
-          }
+          OR: [
+            { fullName: { contains: query.search, mode: "insensitive" } },
+            { email: { contains: query.search, mode: "insensitive" } },
+          ],
+        }
         : {}),
     };
 
@@ -66,16 +66,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-/**
- * POST /api/users - membuat akun staff/cashier baru (khusus OWNER)
- * ------------------------------------------------------------------------
- * Alur:
- *   1. Buat user di Supabase Auth lewat Admin API (service role key).
- *   2. Trigger SQL (`on_auth_user_created`) otomatis membuat record di
- *      `public.users`. Kita tetap melakukan `update` eksplisit setelahnya
- *      untuk memastikan `role` & `phone` sesuai input form (karena trigger
- *      hanya membaca `raw_user_meta_data.role` sebagai fallback default).
- */
+/** POST /api/users - membuat akun staff/cashier baru (khusus OWNER) */
 export async function POST(request: NextRequest) {
   return withApiHandler(async () => {
     const currentUser = await getAuthenticatedUser();
@@ -101,7 +92,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Pastikan profil Prisma sesuai (trigger DB seharusnya sudah membuatnya,
-    // upsert di sini berperan sebagai jaring pengaman/fallback).
     const newUser = await prisma.user.upsert({
       where: { id: authData.user.id },
       update: {
