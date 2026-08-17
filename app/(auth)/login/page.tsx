@@ -147,7 +147,7 @@ function LoginForm() {
             Sign In
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            Staff/cashier accounts are created by the store owner via the User Management menu.
+            Staff/cashier accounts are created by the store owner via the Staff Management menu.
           </p>
         </CardFooter>
       </form>
