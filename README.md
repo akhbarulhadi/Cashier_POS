@@ -46,9 +46,6 @@ This project was built with the goal of delivering a seamless and accessible che
     <strong>Transaction & Cart Management:</strong> Streamlined cashier checkout process with support for holding/resuming orders, applying taxes and discounts, and processing multiple payment methods (Cash, Card, QRIS, E-Wallet).
   </li>
   <li>
-    <strong>Smart Soft-Delete Mechanism:</strong> When products or categories are deleted, their unique identifiers (like SKUs and Names) are timestamped and archived. This ensures historical transaction data remains intact while freeing up the SKU/Name for new entries without database constraint errors.
-  </li>
-  <li>
     <strong>Advanced Inventory Tracking:</strong> Detailed stock movement ledgers (purchases, sales, refunds, and manual adjustments) to trace every single item entering or leaving the system.
   </li>
   <li>

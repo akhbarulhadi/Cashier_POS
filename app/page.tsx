@@ -49,7 +49,7 @@ export default async function HomePage() {
                 <span className="text-primary">Store Management</span>
               </h1>
               <p className="mx-auto max-w-[700px] text-lg text-muted-foreground md:text-xl">
-                A full-stack, enterprise-grade Point of Sale web application. 
+                A full-stack, enterprise-grade Point of Sale web application.
                 Experience a highly responsive, English-localized interface designed for maximum efficiency.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6">
@@ -88,8 +88,8 @@ export default async function HomePage() {
                 Built with modern web technologies, offering robust tools for inventory, CRM, and AI-driven business insights.
               </p>
             </div>
-            
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 max-w-6xl mx-auto">
+
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
               {/* Feature 1 */}
               <Card className="border-0 shadow-md">
                 <CardHeader>
@@ -131,21 +131,6 @@ export default async function HomePage() {
                 <CardContent>
                   <CardDescription className="text-sm">
                     Built-in AI chat powered by Groq API to provide store owners and managers with intelligent business strategies and insights based on sales data.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-
-              {/* Feature 4 */}
-              <Card className="border-0 shadow-md">
-                <CardHeader>
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Globe className="h-5 w-5 text-primary" />
-                  </div>
-                  <CardTitle>English Localized UI</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-sm">
-                    Fully translated, intuitive user interface designed for maximum efficiency and clarity. Built with Tailwind CSS and Radix UI primitives.
                   </CardDescription>
                 </CardContent>
               </Card>
