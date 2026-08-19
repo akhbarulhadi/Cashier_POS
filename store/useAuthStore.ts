@@ -10,6 +10,7 @@ export interface AuthProfile {
   email: string;
   fullName: string;
   role: UserRole;
+  phone: string | null;
   avatarUrl?: string | null;
   isActive: boolean;
   storeId?: string | null;
