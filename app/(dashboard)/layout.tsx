@@ -36,6 +36,7 @@ export default async function DashboardLayout({
         id: profile.id,
         email: profile.email,
         fullName: profile.fullName,
+        phone: profile.phone,
         role: profile.role,
         avatarUrl: profile.avatarUrl,
         isActive: profile.isActive,
