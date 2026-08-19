@@ -18,7 +18,7 @@ export default async function PrintReceiptPage({ params }: PrintReceiptPageProps
         customer: true,
       },
     }),
-    prisma.storeSetting.findFirst(),
+    prisma.store.findFirst(),  // Fetch the store via transaction.storeId
   ]);
 
   if (!transaction) {
@@ -44,7 +44,7 @@ export default async function PrintReceiptPage({ params }: PrintReceiptPageProps
         customer: transaction.customer
           ? { name: transaction.customer.name, phone: transaction.customer.phone }
           : null,
-        items: transaction.items.map((item) => ({
+        items: transaction.items.map((item: typeof transaction.items[number]) => ({
           id: item.id,
           productName: item.productName,
           sku: item.sku,
@@ -57,7 +57,7 @@ export default async function PrintReceiptPage({ params }: PrintReceiptPageProps
       storeSettings={
         storeSettings
           ? {
-              storeName: storeSettings.storeName,
+              storeName: storeSettings.name,
               address: storeSettings.address,
               phone: storeSettings.phone,
               receiptFooter: storeSettings.receiptFooter,

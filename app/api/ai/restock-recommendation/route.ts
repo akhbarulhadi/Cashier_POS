@@ -1,7 +1,11 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
-import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-helpers";
+import {
+  getAuthenticatedUserWithStore,
+  requireRole,
+  MANAGERIAL_ROLES,
+} from "@/lib/auth-helpers";
 import { groq, GROQ_MODEL, isGroqConfigured } from "@/lib/groq";
 import { restockQuerySchema } from "@/lib/validations/ai.schema";
 
@@ -85,10 +89,10 @@ function buildRuleBasedRecommendations(insights: ProductInsight[]): {
   return { recommendations, summary };
 }
 
-/** GET /api/ai/restock-recommendation?days=30 - rekomendasi restock cerdas (khusus OWNER/ADMIN) */
+/** GET /api/ai/restock-recommendation?days=30 (scoped ke toko user) */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
     requireRole(user, MANAGERIAL_ROLES);
 
     const { days } = restockQuerySchema.parse(
@@ -100,13 +104,14 @@ export async function GET(request: NextRequest) {
 
     const [products, salesGrouped] = await Promise.all([
       prisma.product.findMany({
-        where: { deletedAt: null, isActive: true },
+        where: { storeId: user.storeId, deletedAt: null, isActive: true },
         select: { id: true, name: true, sku: true, stock: true, minStock: true },
       }),
       prisma.transactionItem.groupBy({
         by: ["productId"],
         where: {
           transaction: {
+            storeId: user.storeId,
             createdAt: { gte: startDate },
             status: { in: ["COMPLETED", "PARTIALLY_REFUNDED"] },
           },

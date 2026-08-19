@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut, Menu, User as UserIcon } from "lucide-react";
+import { LogOut, Menu, User as UserIcon, Store } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/utils/supabase/client";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -53,6 +53,14 @@ export function Navbar() {
         <Menu className="h-5 w-5" />
       </Button>
 
+      {/* Store name indicator (desktop) */}
+      {profile?.storeName && (
+        <div className="hidden items-center gap-1.5 text-sm text-muted-foreground md:flex">
+          <Store className="h-3.5 w-3.5" />
+          <span className="font-medium">{profile.storeName}</span>
+        </div>
+      )}
+
       <div className="hidden md:block" />
 
       <div className="flex items-center gap-2">
@@ -82,12 +90,18 @@ export function Navbar() {
                     {ROLE_LABEL[profile.role]}
                   </Badge>
                 )}
+                {profile?.storeName && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Store className="h-3 w-3" />
+                    {profile.storeName}
+                  </span>
+                )}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push("/settings")}>
               <UserIcon className="mr-2 h-4 w-4" />
-              Profile & Settings
+              Profile &amp; Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">

@@ -2,22 +2,22 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
-import { ApiError } from "@/lib/api-error";
 import {
-  getAuthenticatedUser,
+  getAuthenticatedUserWithStore,
   requireRole,
   MANAGERIAL_ROLES,
   OWNER_ONLY_ROLES,
 } from "@/lib/auth-helpers";
 import { createUserSchema, userQuerySchema } from "@/lib/validations/user.schema";
 import { createServiceRoleClient } from "@/utils/supabase/server";
+import { ApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/users - list staff/cashier (khusus OWNER/ADMIN) */
+/** GET /api/users - list staff dalam toko yang sama (OWNER/ADMIN) */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
-    const currentUser = await getAuthenticatedUser();
+    const currentUser = await getAuthenticatedUserWithStore();
     requireRole(currentUser, MANAGERIAL_ROLES);
 
     const query = userQuerySchema.parse(
@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     );
 
     const where: Prisma.UserWhereInput = {
+      storeId: currentUser.storeId,
       deletedAt: null,
       ...(query.role ? { role: query.role } : {}),
       ...(query.search
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
 /** POST /api/users - membuat akun staff/cashier baru (khusus OWNER) */
 export async function POST(request: NextRequest) {
   return withApiHandler(async () => {
-    const currentUser = await getAuthenticatedUser();
+    const currentUser = await getAuthenticatedUserWithStore();
     requireRole(currentUser, OWNER_ONLY_ROLES);
 
     const body = await request.json();
@@ -91,13 +92,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Pastikan profil Prisma sesuai (trigger DB seharusnya sudah membuatnya,
+    // Upsert profil Prisma dan ikat ke toko OWNER yang membuat
     const newUser = await prisma.user.upsert({
       where: { id: authData.user.id },
       update: {
         fullName: data.fullName,
         phone: data.phone,
         role: data.role,
+        storeId: currentUser.storeId,
       },
       create: {
         id: authData.user.id,
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
         fullName: data.fullName,
         phone: data.phone,
         role: data.role,
+        storeId: currentUser.storeId,
       },
     });
 

@@ -3,10 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
 import { ApiError } from "@/lib/api-error";
 import {
-  getAuthenticatedUser,
+  getAuthenticatedUserWithStore,
   requireRole,
-  MANAGERIAL_ROLES,
+  requireSameStore,
   OWNER_ONLY_ROLES,
+  MANAGERIAL_ROLES,
 } from "@/lib/auth-helpers";
 import { updateUserSchema } from "@/lib/validations/user.schema";
 import { createServiceRoleClient } from "@/utils/supabase/server";
@@ -18,7 +19,7 @@ type Params = { params: Promise<{ id: string }> };
 /** GET /api/users/:id */
 export async function GET(_request: NextRequest, { params }: Params) {
   return withApiHandler(async () => {
-    const currentUser = await getAuthenticatedUser();
+    const currentUser = await getAuthenticatedUserWithStore();
     const { id } = await params;
 
     const isManagerial = currentUser.role === "OWNER" || currentUser.role === "ADMIN";
@@ -38,10 +39,16 @@ export async function GET(_request: NextRequest, { params }: Params) {
         avatarUrl: true,
         lastLogin: true,
         createdAt: true,
+        storeId: true,
       },
     });
 
     if (!user) throw ApiError.notFound("User not found.");
+
+    // Pastikan user yang diakses dalam toko yang sama (kecuali akses diri sendiri)
+    if (currentUser.id !== id) {
+      requireSameStore(currentUser.storeId, user.storeId);
+    }
 
     return apiSuccess(user, "User details successfully retrieved.");
   });
@@ -50,7 +57,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 /** PATCH /api/users/:id - update profil/role (khusus OWNER untuk ubah role) */
 export async function PATCH(request: NextRequest, { params }: Params) {
   return withApiHandler(async () => {
-    const currentUser = await getAuthenticatedUser();
+    const currentUser = await getAuthenticatedUserWithStore();
     const { id } = await params;
 
     const body = await request.json();
@@ -72,6 +79,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) throw ApiError.notFound("User not found.");
 
+    // Pastikan user yang diedit berada di toko yang sama (kecuali edit diri sendiri)
+    if (!isSelf) {
+      requireSameStore(currentUser.storeId, existing.storeId);
+    }
+
     const updated = await prisma.user.update({ where: { id }, data });
 
     return apiSuccess(updated, "User data successfully updated.");
@@ -81,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 /** DELETE /api/users/:id - nonaktifkan akun staff (khusus OWNER) */
 export async function DELETE(_request: NextRequest, { params }: Params) {
   return withApiHandler(async () => {
-    const currentUser = await getAuthenticatedUser();
+    const currentUser = await getAuthenticatedUserWithStore();
     requireRole(currentUser, OWNER_ONLY_ROLES);
     const { id } = await params;
 
@@ -91,6 +103,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) throw ApiError.notFound("User not found.");
+    requireSameStore(currentUser.storeId, existing.storeId);
 
     const updated = await prisma.user.update({
       where: { id },
@@ -107,3 +120,4 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     return apiSuccess(updated, "Akun pengguna berhasil dinonaktifkan.");
   });
 }
+

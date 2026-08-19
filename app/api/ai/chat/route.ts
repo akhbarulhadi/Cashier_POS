@@ -2,7 +2,11 @@ import { NextRequest } from "next/server";
 import { Prisma, TransactionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
-import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-helpers";
+import {
+  getAuthenticatedUserWithStore,
+  requireRole,
+  MANAGERIAL_ROLES,
+} from "@/lib/auth-helpers";
 import { groq, GROQ_MODEL, isGroqConfigured } from "@/lib/groq";
 import { chatRequestSchema } from "@/lib/validations/ai.schema";
 
@@ -13,7 +17,7 @@ interface TopProductAggregate {
   _sum: { quantity: number | null };
 }
 
-async function getStoreContextSnapshot() {
+async function getStoreContextSnapshot(storeId: string) {
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -23,30 +27,30 @@ async function getStoreContextSnapshot() {
   const [todayAgg, monthAgg, lowStockRows, bestSellerMonth, totalCustomers, totalActiveProducts] =
     await Promise.all([
       prisma.transaction.aggregate({
-        where: { createdAt: { gte: startOfToday }, status: { in: validStatuses } },
+        where: { storeId, createdAt: { gte: startOfToday }, status: { in: validStatuses } },
         _sum: { grandTotal: true },
         _count: true,
       }),
       prisma.transaction.aggregate({
-        where: { createdAt: { gte: startOfMonth }, status: { in: validStatuses } },
+        where: { storeId, createdAt: { gte: startOfMonth }, status: { in: validStatuses } },
         _sum: { grandTotal: true },
         _count: true,
       }),
       prisma.$queryRaw<{ count: bigint }[]>`
         SELECT COUNT(*)::bigint as count FROM products
-        WHERE stock <= min_stock AND deleted_at IS NULL AND is_active = true
+        WHERE stock <= min_stock AND deleted_at IS NULL AND is_active = true AND store_id = ${storeId}::uuid
       `,
       prisma.transactionItem.groupBy({
         by: ["productName"],
         where: {
-          transaction: { createdAt: { gte: startOfMonth }, status: { in: validStatuses } },
+          transaction: { storeId, createdAt: { gte: startOfMonth }, status: { in: validStatuses } },
         },
         _sum: { quantity: true },
         orderBy: { _sum: { quantity: "desc" } },
         take: 5,
       }),
-      prisma.customer.count({ where: { deletedAt: null } }),
-      prisma.product.count({ where: { deletedAt: null, isActive: true } }),
+      prisma.customer.count({ where: { storeId, deletedAt: null } }),
+      prisma.product.count({ where: { storeId, deletedAt: null, isActive: true } }),
     ]);
 
   return {
@@ -86,7 +90,7 @@ function buildSystemPrompt(context: Awaited<ReturnType<typeof getStoreContextSna
 /** POST /api/ai/chat - Business Advisor Chatbot (khusus OWNER/ADMIN) */
 export async function POST(request: NextRequest) {
   return withApiHandler(async () => {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
     requireRole(user, MANAGERIAL_ROLES);
 
     const body = await request.json();
@@ -100,12 +104,13 @@ export async function POST(request: NextRequest) {
       const session = await prisma.aiChatSession.create({
         data: {
           userId: user.id,
+          storeId: user.storeId,
           title: titleCandidate,
         },
       });
       sessionId = session.id;
     } else {
-      // Verifikasi kepemilikan session
+      // Verifikasi kepemilikan session (harus milik user yang sama)
       const existingSession = await prisma.aiChatSession.findUnique({
         where: { id: sessionId },
       });
@@ -113,6 +118,7 @@ export async function POST(request: NextRequest) {
         const session = await prisma.aiChatSession.create({
           data: {
             userId: user.id,
+            storeId: user.storeId,
             title: lastUserMessage?.content?.slice(0, 80) || "Sesi Baru",
           },
         });
@@ -139,7 +145,6 @@ export async function POST(request: NextRequest) {
         data: { sessionId, role: "assistant", content: fallbackReply },
       });
 
-      // Update session timestamp
       await prisma.aiChatSession.update({
         where: { id: sessionId },
         data: { updatedAt: new Date() },
@@ -152,7 +157,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      const context = await getStoreContextSnapshot();
+      const context = await getStoreContextSnapshot(user.storeId);
       const systemPrompt = buildSystemPrompt(context);
 
       const completion = await groq.chat.completions.create({
@@ -172,7 +177,6 @@ export async function POST(request: NextRequest) {
         data: { sessionId, role: "assistant", content: reply },
       });
 
-      // Update session timestamp
       await prisma.aiChatSession.update({
         where: { id: sessionId },
         data: { updatedAt: new Date() },
@@ -196,4 +200,3 @@ export async function POST(request: NextRequest) {
     }
   });
 }
-

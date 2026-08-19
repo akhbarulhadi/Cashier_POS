@@ -45,6 +45,31 @@ export async function getAuthenticatedUser(): Promise<PrismaUser> {
   return profile;
 }
 
+/**
+ * Sama dengan getAuthenticatedUser() tetapi juga memastikan user sudah terikat ke
+ * sebuah toko (storeId tidak null). Gunakan ini di semua endpoint yang membutuhkan
+ * isolasi data per toko.
+ */
+export async function getAuthenticatedUserWithStore(): Promise<PrismaUser & { storeId: string }> {
+  const user = await getAuthenticatedUser();
+  if (!user.storeId) {
+    throw ApiError.forbidden(
+      "Akun Anda belum terikat ke toko manapun. Hubungi pemilik toko untuk mendapatkan akses."
+    );
+  }
+  return user as PrismaUser & { storeId: string };
+}
+
+/**
+ * Guard: Memastikan resource yang diakses berada dalam toko yang sama dengan user.
+ * Lempar 403 jika storeId tidak cocok.
+ */
+export function requireSameStore(userStoreId: string, resourceStoreId: string | null | undefined) {
+  if (!resourceStoreId || userStoreId !== resourceStoreId) {
+    throw ApiError.forbidden("Anda tidak memiliki akses ke resource ini.");
+  }
+}
+
 export function requireRole(user: PrismaUser, allowedRoles: UserRole[]) {
   if (!allowedRoles.includes(user.role)) {
     throw ApiError.forbidden(

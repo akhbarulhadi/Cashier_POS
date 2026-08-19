@@ -42,11 +42,11 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/settings", label: "Settings", icon: Settings, roles: ["OWNER"] },
 ];
 
-export function Sidebar({ role }: { role: UserRole }) {
+export function Sidebar({ role, storeName }: { role: UserRole; storeName: string }) {
   const pathname = usePathname();
   const isCollapsed = useUiStore((s) => s.isSidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
-  
+
   const isMobileOpen = useUiStore((s) => s.isMobileSidebarOpen);
   const setMobileOpen = useUiStore((s) => s.setMobileSidebarOpen);
 
@@ -62,9 +62,11 @@ export function Sidebar({ role }: { role: UserRole }) {
     <>
       <div className="flex h-16 shrink-0 items-center justify-between border-b px-4">
         {(!isCollapsed || isMobileOpen) && (
-          <div className="flex items-center gap-2 font-semibold">
-            <Store className="h-5 w-5 text-primary" />
-            <span>POS Enterprise</span>
+          <div className="flex min-w-0 items-center gap-2 font-semibold">
+            <Store className="h-5 w-5 shrink-0 text-primary" />
+            <span className="truncate text-sm" title={storeName}>
+              {storeName}
+            </span>
           </div>
         )}
         <Button

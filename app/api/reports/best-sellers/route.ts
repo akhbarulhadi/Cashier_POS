@@ -1,14 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
-import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-helpers";
+import {
+  getAuthenticatedUserWithStore,
+  requireRole,
+  MANAGERIAL_ROLES,
+} from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 /** GET /api/reports/best-sellers?startDate=&endDate=&limit=10 */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
     requireRole(user, MANAGERIAL_ROLES);
 
     const searchParams = request.nextUrl.searchParams;
@@ -26,6 +30,7 @@ export async function GET(request: NextRequest) {
       by: ["productId", "productName", "sku"],
       where: {
         transaction: {
+          storeId: user.storeId,
           createdAt: { gte: startDate, lte: endDate },
           status: { in: ["COMPLETED", "PARTIALLY_REFUNDED"] },
         },
@@ -37,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     const productIds = grouped.map((g) => g.productId);
     const products = await prisma.product.findMany({
-      where: { id: { in: productIds } },
+      where: { id: { in: productIds }, storeId: user.storeId },
       select: { id: true, stock: true, minStock: true, imageUrl: true },
     });
     const productMap = new Map(products.map((p) => [p.id, p]));

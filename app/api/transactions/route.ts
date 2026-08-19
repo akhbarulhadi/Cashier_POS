@@ -3,7 +3,7 @@ import { Prisma, StockMovementType, TransactionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
 import { ApiError } from "@/lib/api-error";
-import { getAuthenticatedUser } from "@/lib/auth-helpers";
+import { getAuthenticatedUserWithStore } from "@/lib/auth-helpers";
 import { checkoutSchema, transactionQuerySchema } from "@/lib/validations/transaction.schema";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +18,10 @@ function generateInvoiceNumber(): string {
   return `INV-${datePart}-${randomPart}`;
 }
 
-/** GET /api/transactions - riwayat transaksi dengan server-side pagination & filter */
+/** GET /api/transactions - riwayat transaksi (scoped ke toko user) */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
-    const currentUser = await getAuthenticatedUser();
+    const currentUser = await getAuthenticatedUserWithStore();
 
     const query = transactionQuerySchema.parse(
       Object.fromEntries(request.nextUrl.searchParams)
@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     const isManagerial = currentUser.role === "OWNER" || currentUser.role === "ADMIN";
 
     const where: Prisma.TransactionWhereInput = {
+      storeId: currentUser.storeId,
       ...(isManagerial ? {} : { cashierId: currentUser.id }),
       ...(query.cashierId && isManagerial ? { cashierId: query.cashierId } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
@@ -76,15 +77,17 @@ export async function GET(request: NextRequest) {
 /** POST /api/transactions - CHECKOUT (inti sistem POS) */
 export async function POST(request: NextRequest) {
   return withApiHandler(async () => {
-    const cashier = await getAuthenticatedUser();
+    const cashier = await getAuthenticatedUserWithStore();
 
     const body = await request.json();
     const input = checkoutSchema.parse(body);
 
     const transaction = await prisma.$transaction(async (tx) => {
       const productIds = input.items.map((i) => i.productId);
+
+      // Fetch products dan validasi mereka milik toko yang sama
       const products = await tx.product.findMany({
-        where: { id: { in: productIds } },
+        where: { id: { in: productIds }, storeId: cashier.storeId },
       });
 
       const productMap = new Map(products.map((p) => [p.id, p]));
@@ -99,7 +102,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 3) Hitung subtotal & siapkan payload item (snapshot harga & HPP)
+      // Hitung subtotal & siapkan payload item (snapshot harga & HPP)
       let subtotal = new Prisma.Decimal(0);
       const itemsPayload = input.items.map((item) => {
         const product = productMap.get(item.productId)!;
@@ -148,6 +151,7 @@ export async function POST(request: NextRequest) {
           invoiceNumber: generateInvoiceNumber(),
           customerId: input.customerId ?? null,
           cashierId: cashier.id,
+          storeId: cashier.storeId,
           subtotal,
           discountAmount: globalDiscount,
           taxAmount,
@@ -163,7 +167,7 @@ export async function POST(request: NextRequest) {
         include: { items: true },
       });
 
-      // 5) Potong stok secara ATOMIC per product + catat StockMovement
+      // Potong stok secara ATOMIC per product + catat StockMovement
       for (const item of input.items) {
         const product = productMap.get(item.productId)!;
 
@@ -220,6 +224,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return apiSuccess(fullTransaction, "Transaction successful.diselesaikan.", 201);
+    return apiSuccess(fullTransaction, "Transaction successful.", 201);
   });
 }

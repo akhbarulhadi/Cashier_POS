@@ -12,6 +12,8 @@ export interface AuthProfile {
   role: UserRole;
   avatarUrl?: string | null;
   isActive: boolean;
+  storeId?: string | null;
+  storeName?: string | null;
 }
 
 interface AuthState {

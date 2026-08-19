@@ -1,14 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
-import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-helpers";
+import {
+  getAuthenticatedUserWithStore,
+  requireRole,
+  MANAGERIAL_ROLES,
+} from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 /** GET /api/reports/sales?startDate=&endDate=&groupBy=day|month */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
     requireRole(user, MANAGERIAL_ROLES);
 
     const searchParams = request.nextUrl.searchParams;
@@ -22,6 +26,8 @@ export async function GET(request: NextRequest) {
       ? new Date(searchParams.get("endDate")!)
       : now;
 
+    const storeId = user.storeId;
+
     const rows = groupBy === "month"
       ? await prisma.$queryRaw<
         { period: Date; total_revenue: string; total_transactions: bigint }[]
@@ -33,6 +39,7 @@ export async function GET(request: NextRequest) {
           FROM transactions
           WHERE created_at BETWEEN ${startDate} AND ${endDate}
             AND status IN ('COMPLETED', 'PARTIALLY_REFUNDED')
+            AND store_id = ${storeId}::uuid
           GROUP BY period
           ORDER BY period ASC
         `
@@ -46,6 +53,7 @@ export async function GET(request: NextRequest) {
           FROM transactions
           WHERE created_at BETWEEN ${startDate} AND ${endDate}
             AND status IN ('COMPLETED', 'PARTIALLY_REFUNDED')
+            AND store_id = ${storeId}::uuid
           GROUP BY period
           ORDER BY period ASC
         `;

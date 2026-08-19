@@ -20,7 +20,7 @@ const PROTECTED_PATH_PREFIXES = [
 const AUTH_ONLY_PATHS = ["/login", "/register", "/forgot-password"];
 
 /** Prefix API yang dikecualikan dari proteksi sesi wajib (mis. callback OAuth). */
-const PUBLIC_API_PREFIXES = ["/api/auth/callback"];
+const PUBLIC_API_PREFIXES = ["/api/auth/callback", "/api/stores"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

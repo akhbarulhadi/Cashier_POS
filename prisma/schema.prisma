@@ -3,12 +3,14 @@
 // =====================================================================================
 // Database   : Supabase PostgreSQL
 // ORM        : Prisma
-// 
+//
 // Notes:
 //   - The `User` model syncs with Supabase Auth `auth.users` via SQL Trigger.
 //   - ID uses UUID to match auth.users, handled by application logic without FK.
 //   - Soft deletes use `deletedAt`.
 //   - `TransactionItem` stores snapshots (name, price) to preserve history.
+//   - Multi-Tenant: All data is scoped per `Store`. Each OWNER owns one Store.
+//     ADMIN/CASHIER are staff linked to a Store via `storeId`.
 // =====================================================================================
 
 generator client {
@@ -75,6 +77,36 @@ enum StockMovementRefType {
   @@map("stock_movement_ref_type")
 }
 
+// STORE (Multi-Tenant Anchor — replaces StoreSetting)
+
+model Store {
+  id   String @id @default(uuid()) @db.Uuid
+  name String @map("name")
+
+  address       String?
+  phone         String?
+  email         String?
+  logoUrl       String? @map("logo_url")
+  receiptFooter String? @map("receipt_footer")
+
+  defaultTaxPercent Decimal @default(0) @map("default_tax_percent") @db.Decimal(5, 2)
+  currency          String  @default("IDR")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations — all store-scoped data
+  users        User[]
+  categories   Category[]
+  products     Product[]
+  customers    Customer[]
+  transactions Transaction[]
+  auditLogs    AuditLog[]
+  chatSessions AiChatSession[]
+
+  @@map("stores")
+}
+
 // USER (SYNCED WITH SUPABASE AUTH)
 
 model User {
@@ -87,17 +119,22 @@ model User {
   isActive  Boolean   @default(true) @map("is_active")
   lastLogin DateTime? @map("last_login")
 
+  // Multi-tenant: every user belongs to one store
+  storeId String? @map("store_id") @db.Uuid
+  store   Store?  @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
-  transactions   Transaction[]      @relation("CashierTransactions")
-  stockMovements StockMovement[]    @relation("UserStockMovements")
+  transactions   Transaction[]       @relation("CashierTransactions")
+  stockMovements StockMovement[]     @relation("UserStockMovements")
   auditLogs      AuditLog[]
   refundsHandled RefundTransaction[] @relation("RefundHandledBy")
   chatSessions   AiChatSession[]
 
   @@index([role])
+  @@index([storeId])
   @@index([deletedAt])
   @@map("users")
 }
@@ -106,9 +143,13 @@ model User {
 
 model Category {
   id          String  @id @default(uuid()) @db.Uuid
-  name        String  @unique
+  name        String
   description String?
   imageUrl    String? @map("image_url")
+
+  // Multi-tenant
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
@@ -116,6 +157,8 @@ model Category {
 
   products Product[]
 
+  @@unique([storeId, name])
+  @@index([storeId])
   @@index([deletedAt])
   @@map("categories")
 }
@@ -123,11 +166,12 @@ model Category {
 // PRODUCTS
 
 model Product {
-  id         String  @id @default(uuid()) @db.Uuid
-  sku        String  @unique
-  barcode    String? @unique
+  id      String @id @default(uuid()) @db.Uuid
+  sku     String
+  barcode String?
+
   name       String
-  categoryId String  @map("category_id") @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   description String?
@@ -142,6 +186,10 @@ model Product {
 
   isActive Boolean @default(true) @map("is_active")
 
+  // Multi-tenant
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -150,6 +198,9 @@ model Product {
   stockMovements   StockMovement[]
   refundItems      RefundItem[]
 
+  @@unique([storeId, sku])
+  @@unique([storeId, barcode])
+  @@index([storeId])
   @@index([categoryId])
   @@index([deletedAt])
   @@index([isActive])
@@ -161,9 +212,9 @@ model Product {
 // STOCK MOVEMENTS
 
 model StockMovement {
-  id        String            @id @default(uuid()) @db.Uuid
-  productId String            @map("product_id") @db.Uuid
-  product   Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid()) @db.Uuid
+  productId String  @map("product_id") @db.Uuid
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   type          StockMovementType    @map("type")
   refType       StockMovementRefType @default(MANUAL) @map("ref_type")
@@ -192,13 +243,17 @@ model StockMovement {
 model Customer {
   id      String  @id @default(uuid()) @db.Uuid
   name    String
-  phone   String? @unique
-  email   String? @unique
+  phone   String?
+  email   String?
   address String?
 
   totalSpent        Decimal @default(0) @map("total_spent") @db.Decimal(14, 2)
   totalTransactions Int     @default(0) @map("total_transactions")
   loyaltyPoints     Int     @default(0) @map("loyalty_points")
+
+  // Multi-tenant
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
@@ -206,6 +261,9 @@ model Customer {
 
   transactions Transaction[]
 
+  @@unique([storeId, phone])
+  @@unique([storeId, email])
+  @@index([storeId])
   @@index([deletedAt])
   @@index([name])
   @@map("customers")
@@ -229,12 +287,16 @@ model Transaction {
   taxPercent      Decimal @default(0) @map("tax_percent") @db.Decimal(5, 2)
   grandTotal      Decimal @map("grand_total") @db.Decimal(14, 2)
 
-  paymentMethod PaymentMethod      @map("payment_method")
-  paidAmount    Decimal            @map("paid_amount") @db.Decimal(14, 2)
-  changeAmount  Decimal            @default(0) @map("change_amount") @db.Decimal(14, 2)
-  status        TransactionStatus  @default(COMPLETED)
+  paymentMethod PaymentMethod     @map("payment_method")
+  paidAmount    Decimal           @map("paid_amount") @db.Decimal(14, 2)
+  changeAmount  Decimal           @default(0) @map("change_amount") @db.Decimal(14, 2)
+  status        TransactionStatus @default(COMPLETED)
 
   notes String?
+
+  // Multi-tenant
+  storeId String @map("store_id") @db.Uuid
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -242,8 +304,7 @@ model Transaction {
   items   TransactionItem[]
   refunds RefundTransaction[]
 
-
-
+  @@index([storeId])
   @@index([cashierId])
   @@index([customerId])
   @@index([status])
@@ -305,12 +366,12 @@ model RefundTransaction {
 }
 
 model RefundItem {
-  id       String @id @default(uuid()) @db.Uuid
-  refundId String @map("refund_id") @db.Uuid
+  id       String            @id @default(uuid()) @db.Uuid
+  refundId String            @map("refund_id") @db.Uuid
   refund   RefundTransaction @relation(fields: [refundId], references: [id], onDelete: Cascade)
 
-  transactionItemId String           @map("transaction_item_id") @db.Uuid
-  transactionItem   TransactionItem  @relation(fields: [transactionItemId], references: [id], onDelete: Restrict)
+  transactionItemId String          @map("transaction_item_id") @db.Uuid
+  transactionItem   TransactionItem @relation(fields: [transactionItemId], references: [id], onDelete: Restrict)
 
   productId String  @map("product_id") @db.Uuid
   product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
@@ -332,6 +393,10 @@ model AuditLog {
   userId String? @map("user_id") @db.Uuid
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  // Multi-tenant
+  storeId String? @map("store_id") @db.Uuid
+  store   Store?  @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
   action     String
   entityType String? @map("entity_type")
   entityId   String? @map("entity_id")
@@ -342,31 +407,11 @@ model AuditLog {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([storeId])
   @@index([userId])
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
-}
-
-// STORE SETTINGS
-
-model StoreSetting {
-  id String @id @default(uuid()) @db.Uuid
-
-  storeName    String  @map("store_name")
-  address      String?
-  phone        String?
-  email        String?
-  logoUrl      String? @map("logo_url")
-  receiptFooter String? @map("receipt_footer")
-
-  defaultTaxPercent Decimal @default(0) @map("default_tax_percent") @db.Decimal(5, 2)
-  currency          String  @default("IDR")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@map("store_settings")
 }
 
 // AI CHAT SESSIONS
@@ -377,11 +422,16 @@ model AiChatSession {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   title  String @default("Sesi Baru")
 
+  // Multi-tenant
+  storeId String? @map("store_id") @db.Uuid
+  store   Store?  @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   messages AiChatMessage[]
 
+  @@index([storeId])
   @@index([userId])
   @@index([createdAt])
   @@map("ai_chat_sessions")

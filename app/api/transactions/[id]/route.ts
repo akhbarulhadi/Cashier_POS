@@ -3,16 +3,21 @@ import { TransactionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
 import { ApiError } from "@/lib/api-error";
-import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-helpers";
+import {
+  getAuthenticatedUserWithStore,
+  requireRole,
+  requireSameStore,
+  MANAGERIAL_ROLES,
+} from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** GET /api/transactions/:id - detail lengkap transaksi (untuk struk/cetak & detail page) */
+/** GET /api/transactions/:id - detail lengkap transaksi */
 export async function GET(_request: NextRequest, { params }: Params) {
   return withApiHandler(async () => {
-    const currentUser = await getAuthenticatedUser();
+    const currentUser = await getAuthenticatedUserWithStore();
     const { id } = await params;
 
     const transaction = await prisma.transaction.findUnique({
@@ -26,6 +31,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     });
 
     if (!transaction) throw ApiError.notFound("Transaction not found.");
+    requireSameStore(currentUser.storeId, transaction.storeId);
 
     const isManagerial = currentUser.role === "OWNER" || currentUser.role === "ADMIN";
     if (!isManagerial && transaction.cashierId !== currentUser.id) {
@@ -36,15 +42,16 @@ export async function GET(_request: NextRequest, { params }: Params) {
   });
 }
 
-/** DELETE /api/transactions/:id - membatalkan transaksi berstatus PENDING. */
+/** DELETE /api/transactions/:id - membatalkan transaksi berstatus PENDING */
 export async function DELETE(_request: NextRequest, { params }: Params) {
   return withApiHandler(async () => {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
     requireRole(user, MANAGERIAL_ROLES);
     const { id } = await params;
 
     const transaction = await prisma.transaction.findUnique({ where: { id } });
     if (!transaction) throw ApiError.notFound("Transaction not found.");
+    requireSameStore(user.storeId, transaction.storeId);
 
     if (transaction.status !== TransactionStatus.PENDING) {
       throw ApiError.conflict(

@@ -185,7 +185,15 @@ npx prisma db push
 npm run prisma:seed
 ```
 
-### 5. Run the Development Server
+### 5. Setup Supabase Auth Triggers
+Since Prisma does not automatically migrate custom database functions and triggers, you need to manually add them to your Supabase project to ensure the authentication system syncs properly with the `public.users` table:
+
+1. Open the file `prisma/sql/sync_auth_user_trigger.sql` in your code editor and copy all of its contents.
+2. Go to your project dashboard on **Supabase**.
+3. Navigate to the **SQL Editor** menu on the left panel.
+4. Click **New query**, paste the copied SQL code, and click **Run**.
+
+### 6. Run the Development Server
 ```bash
 npm run dev
 ```

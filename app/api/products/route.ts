@@ -3,15 +3,19 @@ import { Prisma, StockMovementType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
 import { ApiError } from "@/lib/api-error";
-import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-helpers";
+import {
+  getAuthenticatedUserWithStore,
+  requireRole,
+  MANAGERIAL_ROLES,
+} from "@/lib/auth-helpers";
 import { createProductSchema, productQuerySchema } from "@/lib/validations/product.schema";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/products - list products with filter, search, & pagination */
+/** GET /api/products - list products (scoped to user's store) */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
-    await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
 
     const query = productQuerySchema.parse(
       Object.fromEntries(request.nextUrl.searchParams)
@@ -20,12 +24,14 @@ export async function GET(request: NextRequest) {
     let lowStockProductIds: string[] | undefined;
     if (query.lowStockOnly) {
       const rows = await prisma.$queryRaw<{ id: string }[]>`
-        SELECT id FROM products WHERE stock <= min_stock AND deleted_at IS NULL
+        SELECT id FROM products
+        WHERE stock <= min_stock AND deleted_at IS NULL AND store_id = ${user.storeId}::uuid
       `;
       lowStockProductIds = rows.map((r) => r.id);
     }
 
     const where: Prisma.ProductWhereInput = {
+      storeId: user.storeId,
       ...(query.includeDeleted ? {} : { deletedAt: null }),
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.isActive !== undefined ? { isActive: query.isActive } : {}),
@@ -64,21 +70,30 @@ export async function GET(request: NextRequest) {
 /** POST /api/products - create new product (OWNER/ADMIN only) */
 export async function POST(request: NextRequest) {
   return withApiHandler(async () => {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
     requireRole(user, MANAGERIAL_ROLES);
 
     const body = await request.json();
     const data = createProductSchema.parse(body);
 
+    // Pastikan kategori milik toko yang sama
     const category = await prisma.category.findUnique({
       where: { id: data.categoryId },
     });
     if (!category || category.deletedAt) {
       throw ApiError.badRequest("Selected category is invalid or has been deleted.");
     }
+    if (category.storeId !== user.storeId) {
+      throw ApiError.badRequest("Selected category does not belong to your store.");
+    }
 
     const product = await prisma.$transaction(async (tx) => {
-      const created = await tx.product.create({ data });
+      const created = await tx.product.create({
+        data: {
+          ...data,
+          storeId: user.storeId,
+        },
+      });
 
       // Record initial stock as INITIAL movement for ledger consistency
       if (created.stock > 0) {

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import { getAuthenticatedUser } from "@/lib/auth-helpers";
+import { prisma } from "@/lib/prisma";
 import { AuthStoreProvider } from "@/components/providers/AuthStoreProvider";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
@@ -20,10 +20,13 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  let profile;
-  try {
-    profile = await getAuthenticatedUser();
-  } catch {
+  // Fetch profil lengkap termasuk relasi Store
+  const profile = await prisma.user.findUnique({
+    where: { id: user.id },
+    include: { store: { select: { id: true, name: true } } },
+  });
+
+  if (!profile || !profile.isActive || profile.deletedAt) {
     redirect("/login");
   }
 
@@ -36,10 +39,12 @@ export default async function DashboardLayout({
         role: profile.role,
         avatarUrl: profile.avatarUrl,
         isActive: profile.isActive,
+        storeId: profile.storeId,
+        storeName: profile.store?.name ?? null,
       }}
     >
       <div className="flex h-screen overflow-hidden bg-muted/20">
-        <Sidebar role={profile.role} />
+        <Sidebar role={profile.role} storeName={profile.store?.name ?? "POS Enterprise"} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Navbar />
           <div className="flex flex-1 flex-col overflow-y-auto">

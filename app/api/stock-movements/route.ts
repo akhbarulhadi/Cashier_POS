@@ -3,21 +3,30 @@ import { StockMovementType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
 import { ApiError } from "@/lib/api-error";
-import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-helpers";
+import {
+  getAuthenticatedUserWithStore,
+  requireRole,
+  requireSameStore,
+  MANAGERIAL_ROLES,
+} from "@/lib/auth-helpers";
 import { stockAdjustmentSchema } from "@/lib/validations/product.schema";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/stock-movements - riwayat mutasi stok (filter by productId opsional) */
+/** GET /api/stock-movements - riwayat mutasi stok (scoped ke toko user) */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
-    await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
 
     const productId = request.nextUrl.searchParams.get("productId") ?? undefined;
     const page = Number(request.nextUrl.searchParams.get("page") ?? 1);
     const limit = Math.min(Number(request.nextUrl.searchParams.get("limit") ?? 20), 100);
 
-    const where = productId ? { productId } : {};
+    // Filter via produk yang dimiliki toko user
+    const where = {
+      ...(productId ? { productId } : {}),
+      product: { storeId: user.storeId },
+    };
 
     const [movements, total] = await Promise.all([
       prisma.stockMovement.findMany({
@@ -44,12 +53,11 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/stock-movements - penyesuaian stok manual (khusus OWNER/ADMIN)
- * Dipakai untuk kasus: barang masuk dari supplier, stok opname, koreksi kesalahan input.
  * WAJIB memakai Prisma Transaction agar `Product.stock` dan `StockMovement` konsisten.
  */
 export async function POST(request: NextRequest) {
   return withApiHandler(async () => {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
     requireRole(user, MANAGERIAL_ROLES);
 
     const body = await request.json();
@@ -60,6 +68,7 @@ export async function POST(request: NextRequest) {
       if (!product || product.deletedAt) {
         throw ApiError.notFound("Product tidak ditemukan atau sudah dihapus.");
       }
+      requireSameStore(user.storeId, product.storeId);
 
       const isDeduction = data.type === "ADJUSTMENT_OUT";
       const stockBefore = product.stock;

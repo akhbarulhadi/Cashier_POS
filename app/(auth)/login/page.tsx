@@ -146,9 +146,17 @@ function LoginForm() {
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign In
           </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Staff/cashier accounts are created by the store owner via the Staff Management menu.
-          </p>
+          <div className="flex flex-col gap-1 text-center">
+            <p className="text-xs text-muted-foreground">
+              Staff/cashier accounts are created by the store owner.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Don't have a store yet?{" "}
+              <a href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+                Register here
+              </a>
+            </p>
+          </div>
         </CardFooter>
       </form>
     </Card>

@@ -2,14 +2,18 @@ import { NextRequest } from "next/server";
 import { Prisma, TransactionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, withApiHandler } from "@/lib/api-response";
-import { getAuthenticatedUser, requireRole, MANAGERIAL_ROLES } from "@/lib/auth-helpers";
+import {
+  getAuthenticatedUserWithStore,
+  requireRole,
+  MANAGERIAL_ROLES,
+} from "@/lib/auth-helpers";
 
 export const dynamic = "force-dynamic";
 
 /** GET /api/reports/summary?startDate=&endDate= */
 export async function GET(request: NextRequest) {
   return withApiHandler(async () => {
-    const user = await getAuthenticatedUser();
+    const user = await getAuthenticatedUserWithStore();
     requireRole(user, MANAGERIAL_ROLES);
 
     const startDateParam = request.nextUrl.searchParams.get("startDate");
@@ -27,6 +31,7 @@ export async function GET(request: NextRequest) {
     ];
 
     const dateFilter: Prisma.TransactionWhereInput = {
+      storeId: user.storeId,
       createdAt: { gte: startDate, lte: endDate },
       status: { in: validStatuses },
     };
@@ -39,12 +44,18 @@ export async function GET(request: NextRequest) {
         }),
         prisma.transaction.count({ where: dateFilter }),
         prisma.refundTransaction.aggregate({
-          where: { createdAt: { gte: startDate, lte: endDate } },
+          where: {
+            transaction: { storeId: user.storeId },
+            createdAt: { gte: startDate, lte: endDate },
+          },
           _sum: { totalAmount: true },
         }),
         prisma.$queryRaw<{ count: bigint }[]>`
           SELECT COUNT(*)::bigint as count FROM products
-          WHERE stock <= min_stock AND deleted_at IS NULL AND is_active = true
+          WHERE stock <= min_stock
+            AND deleted_at IS NULL
+            AND is_active = true
+            AND store_id = ${user.storeId}::uuid
         `,
         prisma.transactionItem.groupBy({
           by: ["productId", "productName"],
@@ -53,7 +64,7 @@ export async function GET(request: NextRequest) {
           orderBy: { _sum: { quantity: "desc" } },
           take: 1,
         }),
-        prisma.customer.count({ where: { deletedAt: null } }),
+        prisma.customer.count({ where: { storeId: user.storeId, deletedAt: null } }),
       ]);
 
     const grossRevenue = aggregate._sum.grandTotal ?? new Prisma.Decimal(0);
